@@ -1,5 +1,7 @@
 # 🏥 Gestão de Clínicas
 
+#Sprints Trello https://trello.com/b/l72PNlnk/sistema-clinico
+
 Sistema Full Stack para gerenciamento de clínicas médicas, desenvolvido como projeto final da formação de Desenvolvedor Full Stack Junior — Grupo +praTI e Codifica.
 
 O projeto tem como objetivo transformar a modelagem de dados inicialmente planejada em uma aplicação web funcional, organizada em uma arquitetura moderna de **backend + API REST + frontend**, contemplando gerenciamento de usuários, pacientes, profissionais, especialidades, agenda, agendamentos e registros de atendimento.

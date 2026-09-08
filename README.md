@@ -1,1 +1,0 @@
-# GestaoDeClinicas-ProjetoFinal-maisPraTi

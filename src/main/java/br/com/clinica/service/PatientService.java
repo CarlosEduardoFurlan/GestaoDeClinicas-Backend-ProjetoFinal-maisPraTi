@@ -29,6 +29,7 @@ public class PatientService {
             throw new BusinessException("Já existe um paciente cadastrado com este CPF.");
         }
 
+        validateEmail(request.email(), null);
         Address address = findAddress(request.addressId());
         Patient patient = new Patient();
         patient.setName(request.name());
@@ -56,6 +57,7 @@ public class PatientService {
     @Transactional
     public PatientResponse update(UUID id, PatientUpdateRequest request) {
         Patient patient = findPatient(id);
+        validateEmail(request.email(), id);
         Address address = findAddress(request.addressId());
         patient.setName(request.name());
         patient.setDateBirth(request.dateBirth());
@@ -76,6 +78,13 @@ public class PatientService {
     private Patient findPatient(UUID id) {
         return patientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + id));
+    }
+
+    private void validateEmail(String email, UUID id) {
+        if (email == null || email.isBlank()) return;
+        boolean exists = id == null ? patientRepository.existsByEmailIgnoreCase(email)
+                : patientRepository.existsByEmailIgnoreCaseAndIdNot(email, id);
+        if (exists) throw new BusinessException("Já existe um paciente cadastrado com este e-mail.");
     }
 
     private Address findAddress(UUID id) {

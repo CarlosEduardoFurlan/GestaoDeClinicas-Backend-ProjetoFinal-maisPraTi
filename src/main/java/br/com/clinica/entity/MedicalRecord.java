@@ -7,7 +7,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -30,13 +29,10 @@ public class MedicalRecord {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_appointment", nullable = false, unique = true)
     private Appointment appointment;
-    @Lob
-    @Column(name = "symptoms", nullable = false)
+    @Column(name = "symptoms", nullable = false, columnDefinition = "text")
     private String symptoms;
-    @Lob
-    @Column(name = "diagnosis", nullable = false)
+    @Column(name = "diagnosis", nullable = false, columnDefinition = "text")
     private String diagnosis;
-    @Lob
-    @Column(name = "prescription", nullable = false)
+    @Column(name = "prescription", nullable = false, columnDefinition = "text")
     private String prescription;
 }

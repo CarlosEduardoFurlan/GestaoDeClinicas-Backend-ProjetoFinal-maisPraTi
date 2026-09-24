@@ -49,6 +49,8 @@ Crie um banco PostgreSQL chamado `clinica` e configure as variáveis locais `DB_
 
 A senha não deve ser colocada no repositório.
 
+O `.env.example` é apenas referência: exporte as variáveis no terminal ou configure-as na IDE; o Spring Boot não lê `.env` automaticamente. Use JDK 26 e o Maven Wrapper incluído.
+
 ## Versionamento
 Fluxo adotado:
 
@@ -72,3 +74,9 @@ Linux/macOS:
 ```bash
 ./mvnw spring-boot:run
 ```
+
+## Testes e integração
+
+Execute `./mvnw test` (Windows: `./mvnw.cmd test`) para testes unitários. Para incluir os testes de API, migrations e JPA, use um **banco PostgreSQL exclusivo de testes**, configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `RUN_POSTGRES_TESTS=true`, e execute `./mvnw verify`.
+
+O GitHub Actions executa essa suíte com PostgreSQL descartável. A base disponível, os contratos e as pendências por sprint estão em [Base para o integrante 4](docs/BASE_PARA_INTEGRANTE_4.md).

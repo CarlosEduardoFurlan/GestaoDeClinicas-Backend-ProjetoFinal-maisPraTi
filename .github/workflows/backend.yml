@@ -1,0 +1,37 @@
+name: Backend validation
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, integration/merge-open-prs]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: clinica_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RUN_POSTGRES_TESTS: 'true'
+      DB_URL: jdbc:postgresql://localhost:5432/clinica_test
+      DB_USERNAME: test
+      DB_PASSWORD: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+      - run: bash mvnw -B -ntp verify

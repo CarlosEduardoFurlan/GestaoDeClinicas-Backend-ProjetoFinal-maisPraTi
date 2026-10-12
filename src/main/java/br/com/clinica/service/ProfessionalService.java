@@ -118,4 +118,90 @@ public class ProfessionalService {
                 entity.getUser() != null ? entity.getUser().getId() : null
         );
     }
+
+
+    @Transactional
+    public ProfessionalResponseDTO update(UUID id, ProfessionalRequestDTO dto) {
+        // 1. Validar existência do profissional
+        Professional professional = professionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
+
+        // 2. Validar existência da Specialty informada (Requisito 17)
+        Specialty specialty = specialtyRepository.findById(dto.specialtyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada."));
+
+        // 3. Validar duplicidade de registro sem considerar o próprio registro (Requisito 17)
+        if (!professional.getRegister().equals(dto.register()) && professionalRepository.existsByRegister(dto.register())) {
+            throw new BusinessException("Registro profissional já cadastrado por outro usuário.");
+        }
+
+        // 4. Atualizar dados do Usuário associado se fornecido (Requisitos 16, 18 e 20)
+        if (professional.getUser() != null && dto.user() != null) {
+            User user = professional.getUser();
+
+            // Validar duplicidade de e-mail sem considerar o próprio registro (Requisito 17)
+            if (dto.user().email() != null && !user.getEmail().equals(dto.user().email())) {
+                if (userRepository.existsByEmail(dto.user().email())) {
+                    throw new BusinessException("E-mail já cadastrado por outro usuário.");
+                }
+                user.setEmail(dto.user().email());
+            }
+
+            if (dto.user().name() != null) {
+                user.setName(dto.user().name());
+            }
+
+            // Atualização opcional de senha (Requisito 16 e 18)
+            if (dto.user().password() != null && !dto.user().password().isBlank()) {
+                user.setPassword(passwordEncoder.encode(dto.user().password()));
+            }
+
+            if (dto.user().profile() != null) {
+                user.setProfile(dto.user().profile());
+            }
+
+            userRepository.save(user);
+        }
+
+        // 5. Atualizar dados do Endereço
+        if (professional.getAddress() != null && dto.address() != null) {
+            Address address = professional.getAddress();
+            address.setAddress(dto.address().address());
+            address.setNumber(dto.address().number());
+            address.setComplement(dto.address().complement());
+            address.setDistrict(dto.address().district());
+            address.setCity(dto.address().city());
+            address.setUf(dto.address().uf());
+            address.setZipCode(dto.address().zipCode());
+            addressRepository.save(address);
+        }
+
+        // 6. Atualizar dados do Profissional
+        professional.setName(dto.name());
+        professional.setRegister(dto.register());
+        professional.setTelephone(dto.telephone());
+        professional.setCellPhone(dto.cellPhone());
+        professional.setEmail(dto.email());
+        professional.setSpecialty(specialty);
+
+        Professional updated = professionalRepository.save(professional);
+        return toResponseDTO(updated);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        // 1. Validar existência do profissional
+        Professional professional = professionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
+
+        // 2. Executa a exclusão respeitando as FKs (Requisito 19)
+        professionalRepository.delete(professional);
+
+        // 3. Se houver um usuário associado 1:0..1, remove também para não deixar registros órfãos (Requisito 20)
+        if (professional.getUser() != null) {
+            userRepository.delete(professional.getUser());
+        }
+    }
+
+
 }

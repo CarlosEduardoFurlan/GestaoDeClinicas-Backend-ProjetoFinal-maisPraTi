@@ -51,6 +51,10 @@ A senha não deve ser colocada no repositório.
 
 O `.env.example` é apenas referência: exporte as variáveis no terminal ou configure-as na IDE; o Spring Boot não lê `.env` automaticamente. Use JDK 26 e o Maven Wrapper incluído.
 
+Configure também `JWT_SECRET` com pelo menos 32 bytes aleatórios em Base64. Nunca versione essa chave. O login é `POST /api/auth/login`; o primeiro ADMIN é criado manualmente conforme [bootstrap seguro](docs/BOOTSTRAP_ADMIN.md). Não existe cadastro público.
+
+Para CORS, a feature de preparação aceita `APP_CORS_ALLOWED_ORIGINS` com origens exatas separadas por vírgula. Vazio por padrão; não usar `*`. Configure apenas a origem acordada do frontend no ambiente. Permissões da API continuam independentes do CORS.
+
 ## Versionamento
 Fluxo adotado:
 
@@ -79,4 +83,5 @@ Linux/macOS:
 
 Execute `./mvnw test` (Windows: `./mvnw.cmd test`) para testes unitários. Para incluir os testes de API, migrations e JPA, use um **banco PostgreSQL exclusivo de testes**, configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `RUN_POSTGRES_TESTS=true`, e execute `./mvnw verify`.
 
-O GitHub Actions executa essa suíte com PostgreSQL descartável. A base disponível, os contratos e as pendências por sprint estão em [Base para o integrante 4](docs/BASE_PARA_INTEGRANTE_4.md).
+O GitHub Actions executa essa suíte com PostgreSQL descartável. Consulte os [contratos e permissões da API](docs/API.md) e o [relatório de auditoria](docs/AUDITORIA_SPRINT2.md). A Sprint 2 ainda possui decisões pendentes; compilação ou CI verde não significam conclusão do backend.
+

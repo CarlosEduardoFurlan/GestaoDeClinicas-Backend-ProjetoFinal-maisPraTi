@@ -9,4 +9,5 @@ import br.com.clinica.entity.Specialty;
 
 @Repository
 public interface SpecialtyRepository extends JpaRepository<Specialty, UUID> {
+    boolean existsByName(String name);
 }

@@ -1,4 +1,4 @@
-package com.clinica.dto.appointment;
+package br.com.clinica.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;

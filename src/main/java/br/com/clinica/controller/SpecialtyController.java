@@ -35,4 +35,3 @@ public class SpecialtyController {
         return ResponseEntity.noContent().build();
     }
 }
-

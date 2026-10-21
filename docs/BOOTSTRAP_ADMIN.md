@@ -10,4 +10,3 @@ O sistema é interno. Não existe cadastro público nem /api/auth/register. O pr
 6. Remova arquivos temporários que contenham segredo/hash real e verifique que nada disso foi adicionado ao Git. JWT_SECRET é um segredo independente da senha do administrador: use pelo menos 32 bytes aleatórios representados em Base64.
 
 Não há conta ou senha padrão. Não existe migration de credencial nem seed de usuário real. O endpoint administrativo /api/users está preparado, mas permanece bloqueado até aprovação explícita da matriz de acesso. A criação inicial manual não autoriza liberar esse endpoint nem alterar roles.
-

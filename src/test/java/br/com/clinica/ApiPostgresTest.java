@@ -169,4 +169,3 @@ class ApiPostgresTest {
                 .andExpect(jsonPath("$.password").doesNotExist());
     }
 }
-

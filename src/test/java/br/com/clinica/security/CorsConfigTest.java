@@ -21,4 +21,3 @@ class CorsConfigTest {
         assertThrows(IllegalArgumentException.class, () -> new CorsConfig().corsConfigurationSource(origin));
     }
 }
-

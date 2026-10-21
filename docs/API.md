@@ -121,4 +121,3 @@ Formato único ApiErrorResponse: `timestamp,status,error,message,path,details`. 
 `./mvnw.cmd test` no Windows ou `./mvnw test` no Linux/macOS. Sem RUN_POSTGRES_TESTS=true, os testes condicionados a PostgreSQL são ignorados intencionalmente. Para executar todos, usar banco exclusivo, configurar DB_URL/DB_USERNAME/DB_PASSWORD e RUN_POSTGRES_TESTS=true, executar verify. Não usar banco de desenvolvimento.
 
 SecurityHttpTest usa filtros/JWT reais e services simulados. AdministrativeControllersTest testa MVC isoladamente sem filtro, complementado pela comprovação de negação dos mesmos endpoints em SecurityHttpTest. ApiPostgresTest cobre login, BCrypt e fluxo de pacientes HTTP com persistência real. Os números e gates desta rodada estão no relatório de auditoria; contagem não representa cobertura percentual.
-

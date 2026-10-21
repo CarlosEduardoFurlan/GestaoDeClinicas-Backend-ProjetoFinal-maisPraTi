@@ -96,4 +96,3 @@ class AdministrativeControllersTest {
                 """.formatted(UUID.randomUUID()))).andExpect(status().isOk()).andExpect(jsonPath("$.password").doesNotExist());
     }
 }
-

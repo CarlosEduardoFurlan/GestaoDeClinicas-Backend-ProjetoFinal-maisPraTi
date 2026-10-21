@@ -94,4 +94,3 @@ O backend não está concluído e ainda não está pronto para integração tota
 3. Integridade: com a regra anterior definida, aprovar V14 para proteger dupla reserva ou aprovar outro modelo compatível com cancelamento/histórico.
 4. MedicalRecord: manter symptoms/diagnosis/prescription do schema ou aprovar nova migration para o modelo simplificado de notes do protótipo?
 5. Segurança administrativa: quais perfis podem usar User, Specialty e PUT/DELETE de Professional? Até a decisão, todos permanecem bloqueados.
-

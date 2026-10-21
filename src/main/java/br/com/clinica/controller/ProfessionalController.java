@@ -58,4 +58,3 @@ public class ProfessionalController {
         return ResponseEntity.noContent().build();
     }
 }
-

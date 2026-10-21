@@ -586,4 +586,3 @@ class SecurityHttpTest {
         verify(professionals).create(request);
     }
 }
-

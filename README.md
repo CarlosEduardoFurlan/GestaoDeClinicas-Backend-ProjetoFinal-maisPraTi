@@ -84,4 +84,3 @@ Linux/macOS:
 Execute `./mvnw test` (Windows: `./mvnw.cmd test`) para testes unitários. Para incluir os testes de API, migrations e JPA, use um **banco PostgreSQL exclusivo de testes**, configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `RUN_POSTGRES_TESTS=true`, e execute `./mvnw verify`.
 
 O GitHub Actions executa essa suíte com PostgreSQL descartável. Consulte os [contratos e permissões da API](docs/API.md) e o [relatório de auditoria](docs/AUDITORIA_SPRINT2.md). A Sprint 2 ainda possui decisões pendentes; compilação ou CI verde não significam conclusão do backend.
-

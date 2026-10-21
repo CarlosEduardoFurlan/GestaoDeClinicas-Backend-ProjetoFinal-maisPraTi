@@ -79,9 +79,10 @@ MedicalRecord representa Appointment 1:0..1 corretamente no schema/entity. A UI 
 | develop após PR #14 | 145 executados; zero falhas/erros/ignorados; PostgreSQL; verify; JAR |
 | PR #11 WIP | 154 executados; zero falhas/erros/ignorados; PostgreSQL; verify; JAR; CI verde |
 | feature de preparação, suíte convencional mais recente | 169 totais; 158 executados; 11 condicionados ao PostgreSQL ignorados; zero falhas/erros |
-| feature de preparação, última execução PostgreSQL anterior à retomada | 170 executados; zero falhas/erros/ignorados; verify; JAR |
+| feature de preparação, validação final PostgreSQL | 170 executados; zero falhas/erros/ignorados; Flyway V1–V13; JPA validate; verify; JAR |
+| feature de preparação, runtime e smoke HTTP | JAR iniciado em localhost com banco exclusivo; 21 cenários aprovados |
 
-O PostgreSQL temporário foi encerrado entre as sessões. A repetição final de PostgreSQL/runtime da feature de preparação ficou impedida por limite do revisor automático de escalonamento; a tentativa não foi executada. O código posterior acrescentou apenas documentação e o mapeamento externalizado de CORS em application.properties/.env.example, cobertos pela suíte convencional para configuração/HTTP.
+O runtime usou banco PostgreSQL exclusivo e segredo JWT efêmero. Flyway criou o schema vazio, o JPA iniciou com ddl-auto=validate e o JAR respondeu aos smoke tests de login válido e inválido, token ausente e inválido, acesso permitido e negado, validação 400, recurso inexistente 404, rotas sem política 403, cadastro público negado, persistência de Patient, duplicidade, DELETE de Patient bloqueado e CORS configurado e não configurado. Credenciais, hash e token temporários foram removidos ao final.
 
 ## Estado de prontidão
 

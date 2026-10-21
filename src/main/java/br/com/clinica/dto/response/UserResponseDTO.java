@@ -6,7 +6,6 @@ public record UserResponseDTO(
     UUID id,
     String name,
     String email,
-    //String password,
     String profile,
     OffsetDateTime created
 ) {}

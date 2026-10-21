@@ -7,7 +7,7 @@ import br.com.clinica.exception.BusinessException; // Seu padrão de erro (ex: 4
 import br.com.clinica.exception.ResourceNotFoundException; // Seu padrão de erro (ex: 404 Not Found)
 import br.com.clinica.repository.SpecialtyRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +60,7 @@ public class SpecialtyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada com o ID: " + id));
 
         // Valida se o novo nome já está em uso por OUTRA especialidade
-        if (!specialty.getName().equalsIgnoreCase(request.name()) && specialtyRepository.existsByName(request.name())) {
+        if (!specialty.getName().equals(request.name()) && specialtyRepository.existsByName(request.name())) {
             throw new BusinessException("Já existe outra especialidade cadastrada com este nome.");
         }
 
@@ -77,14 +77,8 @@ public class SpecialtyService {
         Specialty specialty = specialtyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada com o ID: " + id));
 
-        try {
-            specialtyRepository.delete(specialty);
-            // Força o JPA a executar o DELETE dentro do try/catch para capturar a violação de FK imediatamente
-            specialtyRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            // Lança o erro padrão do projeto impedindo a exclusão por conta de vínculos existentes
-            throw new BusinessException("Não é possível excluir a especialidade pois ela está vinculada a profissionais ativos.");
-        }
+        specialtyRepository.delete(specialty);
+        specialtyRepository.flush();
     }
 
     // Mapper auxiliar interno

@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-        import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,7 +36,7 @@ class UserServiceTest {
     @Test
     @DisplayName("Cenário: criação válida - salva senha com BCrypt e retorna resposta sem password")
     void deveSalvarComBcryptERetornarSemPassword() {
-        UserRequestDTO request = new UserRequestDTO("João Silva", "joao@email.com", "senha123", "USER");
+        UserRequestDTO request = new UserRequestDTO("João Silva", "joao@email.com", "senha123", "ADMIN");
 
         when(userRepository.existsByEmail(request.email())).thenReturn(false);
         when(passwordEncoder.encode(request.password())).thenReturn("hash_bcrypt_123");
@@ -53,7 +53,7 @@ class UserServiceTest {
         assertNotNull(response.id());
         assertEquals("João Silva", response.name());
         assertEquals("joao@email.com", response.email());
-        assertEquals("USER", response.profile());
+        assertEquals("ADMIN", response.profile());
         // O DTO de resposta sequer possui a propriedade password
         verify(passwordEncoder, times(1)).encode("senha123");
         verify(userRepository, times(1)).save(any(User.class));
@@ -62,7 +62,7 @@ class UserServiceTest {
     @Test
     @DisplayName("Cenário: e-mail duplicado - falha com erro de negócio")
     void deveFalharQuandoEmailDuplicado() {
-        UserRequestDTO request = new UserRequestDTO("João Silva", "duplicado@email.com", "senha123", "USER");
+        UserRequestDTO request = new UserRequestDTO("João Silva", "duplicado@email.com", "senha123", "ADMIN");
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class, () -> userService.create(request));

@@ -10,6 +10,7 @@ import br.com.clinica.exception.BusinessException;
 import br.com.clinica.exception.ResourceNotFoundException;
 
 import br.com.clinica.dto.request.ProfessionalRequestDTO;
+import br.com.clinica.dto.request.ProfessionalUpdateRequestDTO;
 import br.com.clinica.dto.response.ProfessionalResponseDTO;
 import br.com.clinica.entity.Address;
 import br.com.clinica.entity.Professional;
@@ -42,6 +43,7 @@ public class ProfessionalService {
 
     @Transactional
     public ProfessionalResponseDTO create(ProfessionalRequestDTO dto) {
+        ProfileValidation.validate(dto.user().profile());
         // 1. Validações de duplicidade
         if (professionalRepository.existsByRegister(dto.register())) {
             throw new BusinessException("Registro profissional já cadastrado.");
@@ -121,7 +123,7 @@ public class ProfessionalService {
 
 
     @Transactional
-    public ProfessionalResponseDTO update(UUID id, ProfessionalRequestDTO dto) {
+    public ProfessionalResponseDTO update(UUID id, ProfessionalUpdateRequestDTO dto) {
         // 1. Validar existência do profissional
         Professional professional = professionalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
@@ -133,34 +135,6 @@ public class ProfessionalService {
         // 3. Validar duplicidade de registro sem considerar o próprio registro (Requisito 17)
         if (!professional.getRegister().equals(dto.register()) && professionalRepository.existsByRegister(dto.register())) {
             throw new BusinessException("Registro profissional já cadastrado por outro usuário.");
-        }
-
-        // 4. Atualizar dados do Usuário associado se fornecido (Requisitos 16, 18 e 20)
-        if (professional.getUser() != null && dto.user() != null) {
-            User user = professional.getUser();
-
-            // Validar duplicidade de e-mail sem considerar o próprio registro (Requisito 17)
-            if (dto.user().email() != null && !user.getEmail().equals(dto.user().email())) {
-                if (userRepository.existsByEmail(dto.user().email())) {
-                    throw new BusinessException("E-mail já cadastrado por outro usuário.");
-                }
-                user.setEmail(dto.user().email());
-            }
-
-            if (dto.user().name() != null) {
-                user.setName(dto.user().name());
-            }
-
-            // Atualização opcional de senha (Requisito 16 e 18)
-            if (dto.user().password() != null && !dto.user().password().isBlank()) {
-                user.setPassword(passwordEncoder.encode(dto.user().password()));
-            }
-
-            if (dto.user().profile() != null) {
-                user.setProfile(dto.user().profile());
-            }
-
-            userRepository.save(user);
         }
 
         // 5. Atualizar dados do Endereço
@@ -197,10 +171,7 @@ public class ProfessionalService {
         // 2. Executa a exclusão respeitando as FKs (Requisito 19)
         professionalRepository.delete(professional);
 
-        // 3. Se houver um usuário associado 1:0..1, remove também para não deixar registros órfãos (Requisito 20)
-        if (professional.getUser() != null) {
-            userRepository.delete(professional.getUser());
-        }
+
     }
 
 

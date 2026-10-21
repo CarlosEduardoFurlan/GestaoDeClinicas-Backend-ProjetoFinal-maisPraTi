@@ -1,58 +1,25 @@
-# Relatório de Atividades do Integrante — Sprint 2
+﻿# Revisão de pacientes — Sprint 2 — Integrante 2
 
-**Integrante:** Murilo  
-**Módulo / Funcionalidade:** CRUD e Testes Unitários de Pacientes (`Patient`)[cite: 1]  
-**Tecnologias Utilizadas:** Java, Spring Boot, Spring Data JPA, Lombok, JUnit 5 e Mockito[cite: 1]  
+Responsável pela entrega original: Murilo. Revisão de integração em 20/10/2026.
 
----
+## Conteúdo efetivamente entregue
 
-## 1. Escopo e Objetivos
-Desenvolvimento completo da camada de serviço, regras de negócio, transferência de dados (DTOs) e testes unitários automatizados para o gerenciamento de pacientes na API backend da clínica[cite: 1].
+A PR #13 acrescentava apenas este relatório contra main. O CRUD de pacientes, DTOs, repository e os 11 testes de PatientService já estavam na develop; não há código funcional novo nessa entrega.
 
----
+A branch original partiu do histórico de main. Sua comparação de merge com develop incluía também 821 linhas de alteração no README. A integração transportou somente o commit documental 6231d32 para uma branch limpa da develop, preservando a autoria. Nenhuma exclusão de código nem substituição do README foi transportada.
 
-## 2. Tarefas e Entregas Realizadas
+## Contratos preservados
 
-### A. Persistência e Mapeamento
-* Criação e ajuste da entidade `Patient`[cite: 1].
-* Interface `PatientRepository` integrada ao Spring Data JPA para comunicação com o banco de dados[cite: 1].
+PatientService oferece create, findAll, findById, update e delete. Criação e atualização validam endereço existente e e-mail duplicado; criação valida CPF duplicado. Atualização não altera CPF. Recursos inexistentes usam ResourceNotFoundException (404); duplicidades detectadas pelo service usam BusinessException (400).
 
-### B. Camada de Serviço (`PatientService`)
-Implementação dos métodos do ciclo de vida completo[cite: 1]:
-* `create`: Cadastro de novos pacientes[cite: 1].
-* `findAll`: Listagem geral de pacientes cadastrados[cite: 1].
-* `findById`: Busca individual por UUID[cite: 1].
-* `update`: Atualização de dados cadastrais[cite: 1].
-* `delete`: Exclusão de registros por ID (Análise e política de integridade formalizada)[cite: 1].
+POST, GET listagem, GET por ID e PUT de pacientes exigem ADMIN ou RECEPTIONIST. PROFESSIONAL não tem acesso global aos pacientes.
 
-**Regras de Negócio e Validações:**
-* Validação de unicidade para **CPF** e **E-mail**[cite: 1].
-* Verificação de vínculo com `Address` existente em criação e atualização.
-* Lançamento de exceção `ResourceNotFoundException` / `IllegalArgumentException` com mensagens claras em caso de duplicidade ou registro não encontrado[cite: 1].
+## Exclusão e histórico
 
-### C. Transferência de Dados (DTOs)
-Estruturação e isolamento do modelo de domínio utilizando DTOs específicos[cite: 1]:
-* `PatientCreateRequest`
-* `PatientUpdateRequest`
-* `PatientResponse`
+DELETE /api/patients/{id} permanece bloqueado pela segurança nesta Sprint. O método do service ainda faz exclusão física; appointments possui FK para patients, e medical_records depende de appointments. Não foi implementada nova política de exclusão, cascade, soft delete, anonimização ou alteração de schema.
 
-### D. Testes Unitários (`PatientServiceTest`)
-* Desenvolvimento da suíte completa de testes utilizando **JUnit 5** e **Mockito**[cite: 1].
-* Testes cobrindo fluxos de sucesso e exceção (criação válida, CPF duplicado, busca por ID existente/inexistente, listagem e exclusão)[cite: 1].
-* **Resultado dos Testes:** 100% dos testes executados e validados com êxito via Maven (`BUILD SUCCESS` / 11 testes aprovados, 0 falhas, 0 erros)[cite: 1].
+O bloqueio HTTP é a decisão vigente. Uma política futura de exclusão/preservação exige aprovação explícita antes de mudar service ou liberar a rota.
 
----
+## Verificação de integração
 
-## 3. Análise da Política de Exclusão (DELETE)
-
-* **Diagnóstico Técnico:** O método `PatientService.delete(UUID)` realiza atualmente a exclusão física do paciente. Contudo, a tabela de agendamentos (`appointments`) mantém vínculo direto de chave estrangeira (`id_patient -> patients.id`).
-* **Decisão e Diretriz de Grupo:** A exclusão física direta foi identificada como um risco de integridade para o histórico de agendamentos. Alinhado com a equipe, o endpoint `DELETE /api/patients/{id}` permanece **bloqueado na segurança** nesta Sprint, preservando os registros e mantendo os contratos estáveis sem alterações de schema não autorizadas.
-
----
-
-## 4. Versionamento e Integração Git/GitHub
-
-* **Branch Atual:** `feature/sprint2-patients-completion`
-* **Histórico de Sincronização:** Rebase e alinhamento com a branch `develop` mais recente do grupo.
-* **Entregas para o Integrante 4:** Garantia da estabilidade dos contratos `POST`, `GET` e `PUT`, com a documentação explícita do bloqueio mantido no `DELETE` para alinhamento da `SecurityConfig` e `API.md`.
-* **Pull Request:** Abertura formal do Pull Request direcionado para a branch `develop`.
+Após integrar a entrega corrigida do integrante 1, Maven Wrapper/JDK 26 com PostgreSQL 18 exclusivo executou 145 testes: zero falhas, erros ou ignorados. Os 11 casos de PatientServiceTest fazem parte desse total. Este relatório não atribui os testes ou o CRUD preexistentes a código novo da PR #13.

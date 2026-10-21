@@ -10,6 +10,7 @@ import br.com.clinica.exception.BusinessException;
 import br.com.clinica.exception.ResourceNotFoundException;
 
 import br.com.clinica.dto.request.ProfessionalRequestDTO;
+import br.com.clinica.dto.request.ProfessionalUpdateRequestDTO;
 import br.com.clinica.dto.response.ProfessionalResponseDTO;
 import br.com.clinica.entity.Address;
 import br.com.clinica.entity.Professional;
@@ -42,6 +43,7 @@ public class ProfessionalService {
 
     @Transactional
     public ProfessionalResponseDTO create(ProfessionalRequestDTO dto) {
+        ProfileValidation.validate(dto.user().profile());
         // 1. Validações de duplicidade
         if (professionalRepository.existsByRegister(dto.register())) {
             throw new BusinessException("Registro profissional já cadastrado.");
@@ -118,4 +120,59 @@ public class ProfessionalService {
                 entity.getUser() != null ? entity.getUser().getId() : null
         );
     }
+
+
+    @Transactional
+    public ProfessionalResponseDTO update(UUID id, ProfessionalUpdateRequestDTO dto) {
+        // 1. Validar existência do profissional
+        Professional professional = professionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
+
+        // 2. Validar existência da Specialty informada (Requisito 17)
+        Specialty specialty = specialtyRepository.findById(dto.specialtyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Especialidade não encontrada."));
+
+        // 3. Validar duplicidade de registro sem considerar o próprio registro (Requisito 17)
+        if (!professional.getRegister().equals(dto.register()) && professionalRepository.existsByRegister(dto.register())) {
+            throw new BusinessException("Registro profissional já cadastrado por outro usuário.");
+        }
+
+        // 5. Atualizar dados do Endereço
+        if (professional.getAddress() != null && dto.address() != null) {
+            Address address = professional.getAddress();
+            address.setAddress(dto.address().address());
+            address.setNumber(dto.address().number());
+            address.setComplement(dto.address().complement());
+            address.setDistrict(dto.address().district());
+            address.setCity(dto.address().city());
+            address.setUf(dto.address().uf());
+            address.setZipCode(dto.address().zipCode());
+            addressRepository.save(address);
+        }
+
+        // 6. Atualizar dados do Profissional
+        professional.setName(dto.name());
+        professional.setRegister(dto.register());
+        professional.setTelephone(dto.telephone());
+        professional.setCellPhone(dto.cellPhone());
+        professional.setEmail(dto.email());
+        professional.setSpecialty(specialty);
+
+        Professional updated = professionalRepository.save(professional);
+        return toResponseDTO(updated);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        // 1. Validar existência do profissional
+        Professional professional = professionalRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
+
+        // 2. Executa a exclusão respeitando as FKs (Requisito 19)
+        professionalRepository.delete(professional);
+
+
+    }
+
+
 }

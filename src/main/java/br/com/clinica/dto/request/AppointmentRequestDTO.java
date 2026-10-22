@@ -20,7 +20,5 @@ public record AppointmentRequestDTO(
     @NotNull(message = "O horário é obrigatório")
     LocalTime time,
 
-    @NotNull(message = "O ID do status é obrigatório")
-    UUID statusId,
     String notes
 ) {}

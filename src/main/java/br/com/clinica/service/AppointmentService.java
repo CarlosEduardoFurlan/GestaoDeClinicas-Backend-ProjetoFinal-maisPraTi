@@ -1,22 +1,119 @@
 package br.com.clinica.service;
 
+import br.com.clinica.dto.request.AppointmentRequestDTO;
+import br.com.clinica.dto.request.AppointmentStatusUpdateRequestDTO;
 import br.com.clinica.dto.response.AppointmentResponseDTO;
 import br.com.clinica.entity.Appointment;
+import br.com.clinica.entity.Status;
+import br.com.clinica.exception.BusinessException;
+import br.com.clinica.exception.ConflictException;
+import br.com.clinica.exception.ResourceNotFoundException;
 import br.com.clinica.repository.AppointmentRepository;
+import br.com.clinica.repository.PatientRepository;
+import br.com.clinica.repository.ProfessionalRepository;
+import br.com.clinica.repository.ScheduleRepository;
+import br.com.clinica.repository.StatusRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AppointmentService {
-    private final AppointmentRepository appointments;
+    static final String SCHEDULED = "Agendada";
+    static final String CONFIRMED = "Confirmada";
+    static final String IN_PROGRESS = "Em atendimento";
+    static final String COMPLETED = "Concluída";
+    static final String CANCELLED = "Cancelada";
 
-    // Escritas dependem das decisões de status, cancelamento e proteção de dupla reserva.
+    private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
+            SCHEDULED, Set.of(CONFIRMED, CANCELLED),
+            CONFIRMED, Set.of(IN_PROGRESS, CANCELLED),
+            IN_PROGRESS, Set.of(COMPLETED),
+            COMPLETED, Set.of(),
+            CANCELLED, Set.of());
+
+    private final AppointmentRepository appointments;
+    private final PatientRepository patients;
+    private final ProfessionalRepository professionals;
+    private final ScheduleRepository schedules;
+    private final StatusRepository statuses;
+
+    @Transactional
+    public AppointmentResponseDTO create(AppointmentRequestDTO request) {
+        var patient = patients.findById(request.patientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado."));
+        var professional = professionals.findById(request.professionalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
+
+        schedules.findSlotForUpdate(request.professionalId(), request.date(), request.time())
+                .orElseThrow(() -> new ResourceNotFoundException("Horário não disponível na agenda do profissional."));
+
+        if (appointments.existsByProfessional_IdAndDateAndTimeAndStatus_DescriptionNot(
+                request.professionalId(), request.date(), request.time(), CANCELLED)) {
+            throw new ConflictException("Horário já reservado para este profissional.");
+        }
+
+        var appointment = new Appointment();
+        appointment.setPatient(patient);
+        appointment.setProfessional(professional);
+        appointment.setDate(request.date());
+        appointment.setTime(request.time());
+        appointment.setStatus(findStatusByDescription(SCHEDULED));
+        appointment.setNotes(request.notes());
+        return toResponse(appointments.save(appointment));
+    }
+
     @Transactional(readOnly = true)
     public List<AppointmentResponseDTO> findAll() {
         return appointments.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AppointmentResponseDTO findById(UUID id) {
+        return toResponse(findAppointment(id));
+    }
+
+    @Transactional
+    public AppointmentResponseDTO updateStatus(UUID id, AppointmentStatusUpdateRequestDTO request) {
+        var appointment = findAppointment(id);
+        var targetStatus = statuses.findById(request.statusId())
+                .orElseThrow(() -> new ResourceNotFoundException("Status não encontrado."));
+        validateTransition(appointment.getStatus(), targetStatus);
+        appointment.setStatus(targetStatus);
+        return toResponse(appointments.save(appointment));
+    }
+
+    @Transactional
+    public void cancel(UUID id) {
+        var appointment = findAppointment(id);
+        var cancelled = findStatusByDescription(CANCELLED);
+        validateTransition(appointment.getStatus(), cancelled);
+        appointment.setStatus(cancelled);
+        appointments.save(appointment);
+    }
+
+    private Appointment findAppointment(UUID id) {
+        return appointments.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
+    }
+
+    private Status findStatusByDescription(String description) {
+        return statuses.findByDescription(description)
+                .orElseThrow(() -> new IllegalStateException("Catálogo oficial de status não inicializado: " + description));
+    }
+
+    private void validateTransition(Status current, Status target) {
+        var allowedTargets = ALLOWED_TRANSITIONS.get(current.getDescription());
+        if (allowedTargets == null || !allowedTargets.contains(target.getDescription())) {
+            throw new BusinessException("Transição de status não permitida: "
+                    + current.getDescription() + " -> " + target.getDescription() + ".");
+        }
     }
 
     private AppointmentResponseDTO toResponse(Appointment appointment) {

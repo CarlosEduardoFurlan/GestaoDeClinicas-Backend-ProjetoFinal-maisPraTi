@@ -81,24 +81,69 @@ class SecurityHttpTest {
         verifyNoInteractions(patients);
     }
 
-    @ParameterizedTest
-    @EnumSource(Role.class)
-    void administrativeRoutesWithoutApprovedPolicyStayDenied(Role role) throws Exception {
-        String jwt = token(List.of("ROLE_" + role.name()));
+    @Test
+    void adminCanReachEveryApprovedAdministrativeRoute() throws Exception {
+        String jwt = token(List.of("ROLE_ADMIN"));
         String id = UUID.randomUUID().toString();
         for (String resource : List.of("users", "specialties")) {
-            for (var request : List.of(get("/api/" + resource), get("/api/" + resource + "/" + id),
-                    post("/api/" + resource), put("/api/" + resource + "/" + id), delete("/api/" + resource + "/" + id))) {
-                mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
-                        .andExpect(status().isForbidden()).andExpect(jsonPath("$.status").value(403));
-            }
+            mvc.perform(get("/api/" + resource).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk());
+            mvc.perform(get("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk());
+            mvc.perform(post("/api/" + resource).header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(put("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(delete("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isNoContent());
         }
-        for (var request : List.of(put("/api/professionals/" + id), delete("/api/professionals/" + id),
-                delete("/api/patients/" + id), post("/api/auth/register"), get("/api/schedules"), get("/api/appointments"), get("/api/medical-records"))) {
+
+        mvc.perform(put("/api/professionals/" + id).header("Authorization", "Bearer " + jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/professionals/" + id).header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isNoContent());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"RECEPTIONIST", "PROFESSIONAL"})
+    void nonAdminRolesCannotUseAdminOnlyRoutes(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        for (var request : List.of(get("/api/users"), get("/api/users/" + id), post("/api/users"),
+                put("/api/users/" + id), delete("/api/users/" + id), post("/api/specialties"),
+                put("/api/specialties/" + id), delete("/api/specialties/" + id),
+                put("/api/professionals/" + id), delete("/api/professionals/" + id))) {
             mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
         }
-        verifyNoInteractions(userService, specialties, professionals, patients);
+        verifyNoInteractions(userService, specialties, professionals);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void everyApprovedRoleCanReadSpecialties(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        mvc.perform(get("/api/specialties").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/specialties/" + id).header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void routesStillWithoutApprovedPolicyStayDenied(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        for (var request : List.of(delete("/api/patients/" + id), post("/api/auth/register"),
+                get("/api/schedules"), get("/api/appointments"), get("/api/medical-records"))) {
+            mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(patients);
     }
 
     @Test void administrativeRoutesRequireAuthentication() throws Exception {

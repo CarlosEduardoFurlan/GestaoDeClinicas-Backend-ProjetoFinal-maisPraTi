@@ -1,6 +1,6 @@
 # API — +PraClinic
 
-Estado em 20/10/2026. Contratos desta feature de preparação, baseada na develop após PRs #12 e #14. A Sprint 2 ainda tem bloqueios de agenda/agendamentos e modelagem clínica. Rotas implementadas não significam permissões liberadas.
+Estado em 22/10/2026. Contratos desta feature de preparação, atualizada após a integração da PR #11. A etapa seguinte finaliza controllers de agenda, agendamentos e prontuários.
 
 ## Autenticação e matriz de acesso
 
@@ -17,22 +17,22 @@ Enviar `Authorization: Bearer <accessToken>` nas rotas protegidas. Sem autentica
 | GET | /api/professionals | 200 | ADMIN, RECEPTIONIST |
 | GET | /api/professionals/{id} | 200 | ADMIN, RECEPTIONIST |
 | POST | /api/professionals | 201 | ADMIN |
-| PUT | /api/professionals/{id} | 200 previsto, bloqueado | Nenhum perfil |
-| DELETE | /api/professionals/{id} | 204 previsto, bloqueado | Nenhum perfil |
-| GET | /api/users | 200 previsto, bloqueado | Nenhum perfil |
-| GET | /api/users/{id} | 200 previsto, bloqueado | Nenhum perfil |
-| POST | /api/users | 201 previsto, bloqueado | Nenhum perfil |
-| PUT | /api/users/{id} | 200 previsto, bloqueado | Nenhum perfil |
-| DELETE | /api/users/{id} | 204 previsto, bloqueado | Nenhum perfil |
-| GET | /api/specialties | 200 previsto, bloqueado | Nenhum perfil |
-| GET | /api/specialties/{id} | 200 previsto, bloqueado | Nenhum perfil |
-| POST | /api/specialties | 201 previsto, bloqueado | Nenhum perfil |
-| PUT | /api/specialties/{id} | 200 previsto, bloqueado | Nenhum perfil |
-| DELETE | /api/specialties/{id} | 204 previsto, bloqueado | Nenhum perfil |
+| PUT | /api/professionals/{id} | 200 | ADMIN |
+| DELETE | /api/professionals/{id} | 204 | ADMIN |
+| GET | /api/users | 200 | ADMIN |
+| GET | /api/users/{id} | 200 | ADMIN |
+| POST | /api/users | 201 | ADMIN |
+| PUT | /api/users/{id} | 200 | ADMIN |
+| DELETE | /api/users/{id} | 204 | ADMIN |
+| GET | /api/specialties | 200 | ADMIN, RECEPTIONIST, PROFESSIONAL |
+| GET | /api/specialties/{id} | 200 | ADMIN, RECEPTIONIST, PROFESSIONAL |
+| POST | /api/specialties | 201 | ADMIN |
+| PUT | /api/specialties/{id} | 200 | ADMIN |
+| DELETE | /api/specialties/{id} | 204 | ADMIN |
 
-Nas rotas bloqueadas, o filtro retorna 401/403 antes da execução do controller. Seus contratos MVC estão preparados e testados isoladamente, mas ainda não são operações utilizáveis pelo frontend. PROFESSIONAL não recebe acesso global a pacientes/agendamentos. Ownership ainda depende de política aprovada.
+PROFESSIONAL não recebe acesso global a profissionais, pacientes ou agendamentos. A leitura de especialidades é a única operação administrativa global liberada para esse perfil nesta etapa.
 
-Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada. ScheduleController, AppointmentController e MedicalRecordController não estão nesta base: suas dependências/decisões ainda estão pendentes na PR #11 e na modelagem clínica.
+Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada. ScheduleController, AppointmentController e MedicalRecordController serão adicionados na branch final de integração.
 
 ## Login
 
@@ -72,21 +72,21 @@ User: `name` (até 100), `email` (até 100), `password` (até 20), `profile`; to
 
 A criação de usuário/endereço/profissional é transacional. Retorno ProfessionalResponseDTO: `id,name,register,telephone,cellPhone,email,specialtyName,cityName,userId`. Nenhuma senha ou hash é exposta. GET listagem retorna lista; GET por ID retorna objeto.
 
-PUT preparado recebe os campos do cadastro profissional e address, sem user. Não muda e-mail de login, senha, perfil ou vínculo da conta. O e-mail de contato do profissional é um campo distinto do identificador de autenticação. DELETE preparado exclui somente Professional, sem apagar User/Address/agenda/histórico; FKs impedem exclusão quando aplicável. PUT/DELETE ainda retornam 401/403 na API real por ausência de política aprovada.
+PUT recebe os campos do cadastro profissional e address, sem user. Não muda e-mail de login, senha, perfil ou vínculo da conta. O e-mail de contato do profissional é um campo distinto do identificador de autenticação. DELETE exclui somente Professional, sem apagar User/Address/agenda/histórico; FKs impedem exclusão quando aplicável. PUT/DELETE são exclusivos de ADMIN.
 
 Erros de contrato: 400 para validação/registro duplicado/e-mail de usuário duplicado; 404 para profissional/especialidade inexistente; 409 para conflito de integridade.
 
-## Usuários administrativos — contrato preparado, acesso bloqueado
+## Usuários administrativos
 
 POST usa UserRequestDTO descrito acima. PUT usa `name,password,profile`, obrigatórios, com as mesmas validações. Não recebe e-mail. GET por ID/POST/PUT retornam `id,name,email,profile,created`; GET listagem retorna lista. created é fornecido pelo banco e pode ser nulo na resposta imediata de criação antes de recarregar o registro. Nenhuma resposta contém password.
 
-Erros do contrato: 400 para request/perfil inválido/e-mail duplicado; 404 para usuário inexistente; 409 para conflito de integridade. DELETE exige revisão de política antes de liberar: a migration histórica de professionals contém ON DELETE CASCADE a partir de users. Não foi criada nem ampliada essa cascade.
+Erros do contrato: 400 para request/perfil inválido/e-mail duplicado; 404 para usuário inexistente; 409 para conflito de integridade. Todas as operações são exclusivas de ADMIN. A migration histórica de professionals contém ON DELETE CASCADE a partir de users; nenhuma cascade foi criada ou ampliada nesta etapa.
 
-## Especialidades — contrato preparado, acesso bloqueado
+## Especialidades
 
 POST/PUT recebem `name` obrigatório até 50 caracteres e `description` opcional, sem limite artificial além do schema text. GET por ID/POST/PUT retornam `id,name,description,created`; GET listagem retorna lista. created pode ser nulo na resposta imediata de criação antes de recarga do banco.
 
-400 para request/nome duplicado detectado pelo service; 404 para inexistente; 409 para violação de unicidade/FK. DELETE não exclui profissionais relacionados. Não existe estado ativo/inativo de profissional.
+400 para request/nome duplicado detectado pelo service; 404 para inexistente; 409 para violação de unicidade/FK. DELETE não exclui profissionais relacionados. Leitura é permitida aos três perfis; escrita é exclusiva de ADMIN. Não existe estado ativo/inativo de profissional.
 
 ## Agenda, agendamentos e prontuários
 

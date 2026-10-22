@@ -75,7 +75,7 @@ class ScheduleMedicalRecordPostgresTest {
     @Test void appointmentCanExistWithoutMedicalRecordAndBeListed() {
         var appointment = appointment();
         entityManager.clear();
-        assertEquals(0, records.count());
+        assertFalse(records.existsByAppointment_Id(appointment.getId()));
         var found = appointmentService.findAll().stream().filter(a -> a.id().equals(appointment.getId())).findFirst().orElseThrow();
         assertEquals(patient.getId(), found.patientId()); assertEquals(status.getId(), found.statusId());
         assertEquals(501, found.notes().length());
@@ -83,9 +83,9 @@ class ScheduleMedicalRecordPostgresTest {
 
     @Test void databaseRejectsSecondMedicalRecordForSameAppointment() {
         var appointment = appointment();
-        records.saveAndFlush(new MedicalRecord(null, appointment, "symptoms", "diagnosis", "prescription"));
+        records.saveAndFlush(new MedicalRecord(null, appointment, "notes"));
         assertThrows(DataIntegrityViolationException.class,
-                () -> records.saveAndFlush(new MedicalRecord(null, appointment, "other", "other", "other")));
+                () -> records.saveAndFlush(new MedicalRecord(null, appointment, "other")));
     }
 
     private Appointment appointment() {

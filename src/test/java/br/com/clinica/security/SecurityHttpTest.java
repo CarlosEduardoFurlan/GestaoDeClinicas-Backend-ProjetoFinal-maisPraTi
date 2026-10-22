@@ -41,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * são simulados. Não carrega application.properties nem conecta ao banco.
  */
 @WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class,
-        UserController.class, SpecialtyController.class},
+        UserController.class, SpecialtyController.class, ScheduleController.class,
+        AppointmentController.class, MedicalRecordController.class},
         properties = "spring.config.location=optional:classpath:/security-test-isolated.properties")
 @Import({SecurityConfig.class, JwtConfig.class, PasswordConfig.class, AuthenticationConfig.class,
         CustomUserDetailsService.class, JwtService.class, AuthService.class,
@@ -67,6 +68,9 @@ class SecurityHttpTest {
     @MockitoBean PatientService patients;
     @MockitoBean UserService userService;
     @MockitoBean SpecialtyService specialties;
+    @MockitoBean ScheduleService schedules;
+    @MockitoBean AppointmentService appointments;
+    @MockitoBean MedicalRecordService medicalRecords;
 
     @Test void corsAllowsOnlyConfiguredOriginAndDoesNotBypassAuthentication() throws Exception {
         mvc.perform(options("/api/patients").header("Origin", "https://frontend.example.test")
@@ -139,11 +143,15 @@ class SecurityHttpTest {
         String jwt = token(List.of("ROLE_" + role.name()));
         String id = UUID.randomUUID().toString();
         for (var request : List.of(delete("/api/patients/" + id), post("/api/auth/register"),
-                get("/api/schedules"), get("/api/appointments"), get("/api/medical-records"))) {
+                get("/api/schedules"), post("/api/schedules"),
+                get("/api/appointments"), get("/api/appointments/" + id), post("/api/appointments"),
+                put("/api/appointments/" + id), delete("/api/appointments/" + id),
+                get("/api/medical-records"), get("/api/medical-records/" + id),
+                post("/api/medical-records"), put("/api/medical-records/" + id))) {
             mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
         }
-        verifyNoInteractions(patients);
+        verifyNoInteractions(patients, schedules, appointments, medicalRecords);
     }
 
     @Test void administrativeRoutesRequireAuthentication() throws Exception {

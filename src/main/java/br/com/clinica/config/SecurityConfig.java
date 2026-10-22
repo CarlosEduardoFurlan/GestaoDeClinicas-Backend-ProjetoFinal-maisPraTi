@@ -4,6 +4,8 @@ import br.com.clinica.security.ApiAccessDeniedHandler;
 import br.com.clinica.security.ApiAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.config.Customizer;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,6 +14,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@Import(CorsConfig.class)
 public class SecurityConfig {
 
     @Bean
@@ -23,6 +26,7 @@ public class SecurityConfig {
             throws Exception {
 
         http
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -38,6 +42,20 @@ public class SecurityConfig {
                         .hasAnyRole("ADMIN", "RECEPTIONIST")
                         .requestMatchers(HttpMethod.GET, "/api/professionals/{id}")
                         .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/professionals/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/professionals/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers("/api/users", "/api/users/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/specialties", "/api/specialties/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/specialties")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/specialties/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/specialties/{id}")
+                        .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/patients")
                         .hasAnyRole("ADMIN", "RECEPTIONIST")
                         .requestMatchers(HttpMethod.GET, "/api/patients")

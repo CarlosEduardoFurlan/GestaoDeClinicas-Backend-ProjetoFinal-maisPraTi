@@ -40,7 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Filtros, BCrypt e JWT reais. Apenas persistência e serviços de negócio
  * são simulados. Não carrega application.properties nem conecta ao banco.
  */
-@WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class},
+@WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class,
+        UserController.class, SpecialtyController.class},
         properties = "spring.config.location=optional:classpath:/security-test-isolated.properties")
 @Import({SecurityConfig.class, JwtConfig.class, PasswordConfig.class, AuthenticationConfig.class,
         CustomUserDetailsService.class, JwtService.class, AuthService.class,
@@ -53,6 +54,7 @@ class SecurityHttpTest {
         registry.add("security.jwt.secret", () -> SECRET);
         registry.add("security.jwt.issuer", () -> ISSUER);
         registry.add("security.jwt.expiration-seconds", () -> 900);
+        registry.add("app.cors.allowed-origins", () -> "https://frontend.example.test");
     }
 
     @Autowired MockMvc mvc;
@@ -63,6 +65,95 @@ class SecurityHttpTest {
     @MockitoBean UserRepository users;
     @MockitoBean ProfessionalService professionals;
     @MockitoBean PatientService patients;
+    @MockitoBean UserService userService;
+    @MockitoBean SpecialtyService specialties;
+
+    @Test void corsAllowsOnlyConfiguredOriginAndDoesNotBypassAuthentication() throws Exception {
+        mvc.perform(options("/api/patients").header("Origin", "https://frontend.example.test")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "Authorization"))
+                .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", "https://frontend.example.test"));
+        mvc.perform(options("/api/patients").header("Origin", "https://other.example.test")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden()).andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+        mvc.perform(get("/api/patients").header("Origin", "https://frontend.example.test"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(patients);
+    }
+
+    @Test
+    void adminCanReachEveryApprovedAdministrativeRoute() throws Exception {
+        String jwt = token(List.of("ROLE_ADMIN"));
+        String id = UUID.randomUUID().toString();
+        for (String resource : List.of("users", "specialties")) {
+            mvc.perform(get("/api/" + resource).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk());
+            mvc.perform(get("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk());
+            mvc.perform(post("/api/" + resource).header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(put("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(delete("/api/" + resource + "/" + id).header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isNoContent());
+        }
+
+        mvc.perform(put("/api/professionals/" + id).header("Authorization", "Bearer " + jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/professionals/" + id).header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isNoContent());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"RECEPTIONIST", "PROFESSIONAL"})
+    void nonAdminRolesCannotUseAdminOnlyRoutes(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        for (var request : List.of(get("/api/users"), get("/api/users/" + id), post("/api/users"),
+                put("/api/users/" + id), delete("/api/users/" + id), post("/api/specialties"),
+                put("/api/specialties/" + id), delete("/api/specialties/" + id),
+                put("/api/professionals/" + id), delete("/api/professionals/" + id))) {
+            mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(userService, specialties, professionals);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void everyApprovedRoleCanReadSpecialties(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        mvc.perform(get("/api/specialties").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/specialties/" + id).header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void routesStillWithoutApprovedPolicyStayDenied(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        for (var request : List.of(delete("/api/patients/" + id), post("/api/auth/register"),
+                get("/api/schedules"), get("/api/appointments"), get("/api/medical-records"))) {
+            mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(patients);
+    }
+
+    @Test void administrativeRoutesRequireAuthentication() throws Exception {
+        for (String resource : List.of("users", "specialties")) {
+            mvc.perform(get("/api/" + resource)).andExpect(status().isUnauthorized());
+            mvc.perform(post("/api/" + resource).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        verifyNoInteractions(userService, specialties);
+    }
 
     private User user(Role role) {
         var user = new User();

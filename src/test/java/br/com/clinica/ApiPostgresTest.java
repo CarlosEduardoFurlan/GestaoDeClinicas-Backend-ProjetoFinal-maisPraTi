@@ -24,6 +24,9 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import java.time.LocalDate;
 import java.util.UUID;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -49,6 +52,7 @@ class ApiPostgresTest {
     @Autowired PasswordEncoder encoder;
     @Autowired PatientService patientService;
     @Autowired AuthService authService;
+    @Autowired JsonMapper json;
     Address address;
     @BeforeEach void setup() {
         address=new Address(); address.setAddress("Rua Teste"); address.setNumber(1);
@@ -61,13 +65,46 @@ class ApiPostgresTest {
     }
 
     String adminToken() {
+        return tokenFor("ADMIN");
+    }
+
+    String tokenFor(String profile) {
         User admin = new User();
         admin.setName("Admin integração");
         admin.setEmail("admin-integration@example.com");
         admin.setPassword(encoder.encode("integration-password"));
-        admin.setProfile("ADMIN");
+        admin.setProfile(profile);
         users.saveAndFlush(admin);
         return authService.login(new LoginRequestDTO(admin.getEmail(), "integration-password")).accessToken();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ADMIN", "RECEPTIONIST"})
+    void patientHttpFlowUsesRealPersistenceAndKeepsDeleteDenied(String profile) throws Exception {
+        String token = tokenFor(profile);
+        var create = patientRequest("12345678901", "http-patient@example.com");
+        String body = mvc.perform(post("/api/patients").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(create)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.cpf").value(create.cpf()))
+                .andReturn().getResponse().getContentAsString();
+        UUID id = UUID.fromString(json.readTree(body).get("id").asText());
+        mvc.perform(get("/api/patients/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.addressId").value(address.getId().toString()));
+        var update = new PatientUpdateRequest("Nome atualizado", create.dateBirth(), null, "65999999999",
+                "new-http@example.com", "F", address.getId());
+        mvc.perform(put("/api/patients/" + id).header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(update)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Nome atualizado"))
+                .andExpect(jsonPath("$.cpf").value(create.cpf()));
+        assertEquals("new-http@example.com", patients.findById(id).orElseThrow().getEmail());
+        mvc.perform(delete("/api/patients/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        assertTrue(patients.existsById(id));
+        mvc.perform(get("/api/patients/" + UUID.randomUUID()).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/api/patients").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
     }
     @Test void migrationsAndJpaStart() {
         assertEquals(14, jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class));

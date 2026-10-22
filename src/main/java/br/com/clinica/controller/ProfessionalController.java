@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import br.com.clinica.dto.request.ProfessionalUpdateRequestDTO;
 
 import br.com.clinica.dto.request.ProfessionalRequestDTO;
 import br.com.clinica.dto.response.ProfessionalResponseDTO;
@@ -41,5 +44,17 @@ public class ProfessionalController {
     @GetMapping("/{id}")
     public ResponseEntity<ProfessionalResponseDTO> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(professionalService.findById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ProfessionalResponseDTO> update(@PathVariable UUID id,
+            @RequestBody @Valid ProfessionalUpdateRequestDTO request) {
+        return ResponseEntity.ok(professionalService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        professionalService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

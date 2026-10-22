@@ -29,10 +29,21 @@ Enviar `Authorization: Bearer <accessToken>` nas rotas protegidas. Sem autentica
 | POST | /api/specialties | 201 | ADMIN |
 | PUT | /api/specialties/{id} | 200 | ADMIN |
 | DELETE | /api/specialties/{id} | 204 | ADMIN |
+| GET | /api/schedules | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| POST | /api/schedules | 201 previsto, bloqueado | Nenhum perfil até decisão |
+| GET | /api/appointments | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| GET | /api/appointments/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| POST | /api/appointments | 201 previsto, bloqueado | Nenhum perfil até decisão |
+| PUT | /api/appointments/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| DELETE | /api/appointments/{id} | 204 previsto, bloqueado | Nenhum perfil até decisão |
+| GET | /api/medical-records | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| GET | /api/medical-records/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| POST | /api/medical-records | 201 previsto, bloqueado | Nenhum perfil até decisão |
+| PUT | /api/medical-records/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
 
 PROFESSIONAL não recebe acesso global a profissionais, pacientes ou agendamentos. A leitura de especialidades é a única operação administrativa global liberada para esse perfil nesta etapa.
 
-Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada. ScheduleController, AppointmentController e MedicalRecordController serão adicionados na branch final de integração.
+Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada. Os controllers de Agenda, Appointment e MedicalRecord estão implementados, mas o filtro retorna 403 para qualquer perfil até aprovação de sua matriz de acesso.
 
 ## Login
 
@@ -90,9 +101,27 @@ POST/PUT recebem `name` obrigatório até 50 caracteres e `description` opcional
 
 ## Agenda, agendamentos e prontuários
 
-A PR #11 contém correções de DTOs, ScheduleService.create/findAll e AppointmentService.findAll, mas ainda não foi integrada. Falta aprovar status inicial, transições/cancelamento e proteção de dupla reserva. O UNIQUE atual de schedule não impede duplicidade em appointments, demonstrada em PostgreSQL isolado. Nenhuma migration nova foi aplicada.
+### Agenda
 
-MedicalRecord tem entity/repository e UNIQUE de id_appointment. O schema exige symptoms/diagnosis/prescription, mas a tela atual usa notes. DTO/service/controller clínicos aguardam decisão formal. Measurement não tem schema aprovado e não foi implementado. Não existem endpoints adicionais de dashboard/relatórios.
+`POST /api/schedules` recebe `professionalId`, `date` e `time`, todos obrigatórios. O profissional deve existir e V13 garante somente um slot por profissional/data/hora. `GET /api/schedules` retorna `id,professionalId,professionalName,date,time,created`.
+
+### Agendamentos
+
+`POST /api/appointments` recebe `patientId`, `professionalId`, `date`, `time` e `notes` opcional. Não recebe status. O backend atribui Agendada, buscando a descrição única criada pela V14.
+
+A criação exige paciente, profissional e slot existentes. A transação bloqueia o slot com lock pessimista antes de verificar Appointment ativo. Reserva ativa no mesmo horário retorna 409. Appointment Cancelado não bloqueia o slot.
+
+`PUT /api/appointments/{id}` recebe `statusId`. Transições aceitas: Agendada para Confirmada ou Cancelada; Confirmada para Em atendimento ou Cancelada; Em atendimento para Concluída. Concluída e Cancelada são finais. Transição inválida retorna 400.
+
+`DELETE /api/appointments/{id}` preserva o registro, altera o status para Cancelada e retorna 204. Appointment Concluída ou já Cancelada não pode ser cancelada. GET lista ou retorna `id,patientId,patientName,professionalId,professionalName,date,time,statusId,statusName,notes,created`.
+
+### Prontuários
+
+MedicalRecord possui somente `id`, `appointment` e `notes`. V15 converte registros históricos para texto legível antes de remover symptoms, diagnosis e prescription, mantém `notes` obrigatório e preserva `UNIQUE(id_appointment)`.
+
+`POST /api/medical-records` recebe `appointmentId` e `notes`, ambos obrigatórios. Somente um prontuário pode existir por Appointment; duplicidade retorna 409. GET lista/consulta `id,appointmentId,notes`. PUT altera somente notes. Não existe DELETE de prontuário.
+
+Measurement não tem schema aprovado e não foi implementado. Não existem endpoints adicionais de dashboard/relatórios.
 
 ## Erros
 
@@ -109,7 +138,7 @@ Formato único ApiErrorResponse: `timestamp,status,error,message,path,details`. 
 | 403 | Perfil sem permissão ou rota sem política aprovada |
 | 404 | Recurso inexistente, quando a rota está autorizada |
 | 405 | Método não suportado, quando alcança o MVC |
-| 409 | Unicidade ou FK do banco |
+| 409 | Unicidade/FK do banco, Appointment ativo no slot ou segundo prontuário |
 | 500 | Erro inesperado, sem detalhes internos expostos |
 
 ## CORS

@@ -1,6 +1,6 @@
 # API — +PraClinic
 
-Estado em 22/10/2026. Contratos desta feature de preparação, atualizada após a integração da PR #11. A etapa seguinte finaliza controllers de agenda, agendamentos e prontuários.
+Estado em 22/10/2026. Contratos finais da Sprint 2 após a integração dos quatro integrantes.
 
 ## Autenticação e matriz de acesso
 
@@ -29,21 +29,21 @@ Enviar `Authorization: Bearer <accessToken>` nas rotas protegidas. Sem autentica
 | POST | /api/specialties | 201 | ADMIN |
 | PUT | /api/specialties/{id} | 200 | ADMIN |
 | DELETE | /api/specialties/{id} | 204 | ADMIN |
-| GET | /api/schedules | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| POST | /api/schedules | 201 previsto, bloqueado | Nenhum perfil até decisão |
-| GET | /api/appointments | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| GET | /api/appointments/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| POST | /api/appointments | 201 previsto, bloqueado | Nenhum perfil até decisão |
-| PUT | /api/appointments/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| DELETE | /api/appointments/{id} | 204 previsto, bloqueado | Nenhum perfil até decisão |
-| GET | /api/medical-records | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| GET | /api/medical-records/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
-| POST | /api/medical-records | 201 previsto, bloqueado | Nenhum perfil até decisão |
-| PUT | /api/medical-records/{id} | 200 previsto, bloqueado | Nenhum perfil até decisão |
+| GET | /api/schedules | 200 | ADMIN e RECEPTIONIST: todos; PROFESSIONAL: próprios |
+| POST | /api/schedules | 201 | ADMIN: qualquer Professional; PROFESSIONAL: próprio |
+| GET | /api/appointments | 200 | ADMIN e RECEPTIONIST: todos; PROFESSIONAL: próprios |
+| GET | /api/appointments/{id} | 200 | ADMIN e RECEPTIONIST; PROFESSIONAL: próprio |
+| POST | /api/appointments | 201 | ADMIN, RECEPTIONIST |
+| PUT | /api/appointments/{id} | 200 | ADMIN; RECEPTIONIST e PROFESSIONAL conforme transições abaixo |
+| DELETE | /api/appointments/{id} | 204 | ADMIN, RECEPTIONIST |
+| GET | /api/medical-records | 200 | ADMIN: todos; PROFESSIONAL: próprios |
+| GET | /api/medical-records/{id} | 200 | ADMIN; PROFESSIONAL: próprio |
+| POST | /api/medical-records | 201 | PROFESSIONAL, somente Appointment próprio |
+| PUT | /api/medical-records/{id} | 200 | PROFESSIONAL, somente prontuário próprio |
 
-PROFESSIONAL não recebe acesso global a profissionais, pacientes ou agendamentos. A leitura de especialidades é a única operação administrativa global liberada para esse perfil nesta etapa.
+PROFESSIONAL não recebe acesso global a profissionais, pacientes, agendas, agendamentos ou prontuários. O backend resolve o vínculo pelo subject do JWT (e-mail) até User e Professional; `professionalId` recebido do cliente nunca determina ownership. Usuário PROFESSIONAL sem Professional vinculado recebe 403.
 
-Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada. Os controllers de Agenda, Appointment e MedicalRecord estão implementados, mas o filtro retorna 403 para qualquer perfil até aprovação de sua matriz de acesso.
+Não existe cadastro público nem POST /api/auth/register. Toda rota não autorizada explicitamente permanece negada.
 
 ## Login
 
@@ -105,6 +105,8 @@ POST/PUT recebem `name` obrigatório até 50 caracteres e `description` opcional
 
 `POST /api/schedules` recebe `professionalId`, `date` e `time`, todos obrigatórios. O profissional deve existir e V13 garante somente um slot por profissional/data/hora. `GET /api/schedules` retorna `id,professionalId,professionalName,date,time,created`.
 
+ADMIN cria slots para qualquer Professional e lista todos. RECEPTIONIST somente lista todos. PROFESSIONAL lista apenas os próprios slots e só cria quando o `professionalId` corresponde ao Professional resolvido pelo usuário autenticado.
+
 ### Agendamentos
 
 `POST /api/appointments` recebe `patientId`, `professionalId`, `date`, `time` e `notes` opcional. Não recebe status. O backend atribui Agendada, buscando a descrição única criada pela V14.
@@ -113,13 +115,19 @@ A criação exige paciente, profissional e slot existentes. A transação bloque
 
 `PUT /api/appointments/{id}` recebe `statusId`. Transições aceitas: Agendada para Confirmada ou Cancelada; Confirmada para Em atendimento ou Cancelada; Em atendimento para Concluída. Concluída e Cancelada são finais. Transição inválida retorna 400.
 
+ADMIN pode executar qualquer transição válida. RECEPTIONIST pode executar somente Agendada para Confirmada; cancelamento usa DELETE. PROFESSIONAL, somente no próprio Appointment, pode executar Confirmada para Em atendimento e Em atendimento para Concluída. Uma transição válida para a máquina, mas vedada ao ator, retorna 403.
+
 `DELETE /api/appointments/{id}` preserva o registro, altera o status para Cancelada e retorna 204. Appointment Concluída ou já Cancelada não pode ser cancelada. GET lista ou retorna `id,patientId,patientName,professionalId,professionalName,date,time,statusId,statusName,notes,created`.
+
+ADMIN e RECEPTIONIST criam e cancelam Appointments. PROFESSIONAL não cria nem cancela. Nas leituras, ADMIN e RECEPTIONIST recebem todos; PROFESSIONAL recebe somente os vinculados ao próprio Professional e obtém 403 ao consultar identificador alheio.
 
 ### Prontuários
 
 MedicalRecord possui somente `id`, `appointment` e `notes`. V15 converte registros históricos para texto legível antes de remover symptoms, diagnosis e prescription, mantém `notes` obrigatório e preserva `UNIQUE(id_appointment)`.
 
 `POST /api/medical-records` recebe `appointmentId` e `notes`, ambos obrigatórios. Somente um prontuário pode existir por Appointment; duplicidade retorna 409. GET lista/consulta `id,appointmentId,notes`. PUT altera somente notes. Não existe DELETE de prontuário.
+
+ADMIN pode somente ler todos os prontuários. RECEPTIONIST não possui acesso. PROFESSIONAL lê, cria e altera somente prontuários ligados aos próprios Appointments. ADMIN e RECEPTIONIST não podem criar ou alterar conteúdo clínico.
 
 Measurement não tem schema aprovado e não foi implementado. Não existem endpoints adicionais de dashboard/relatórios.
 
@@ -134,8 +142,8 @@ Formato único ApiErrorResponse: `timestamp,status,error,message,path,details`. 
 | Código | Situação |
 | --- | --- |
 | 400 | Validação, JSON/UUID inválido, BusinessException |
-| 401 | Autenticação ausente/inválida, login incorreto |
-| 403 | Perfil sem permissão ou rota sem política aprovada |
+| 401 | Não autenticado: token ausente, inválido ou expirado; login incorreto |
+| 403 | Autenticado sem permissão de perfil ou sem ownership do recurso |
 | 404 | Recurso inexistente, quando a rota está autorizada |
 | 405 | Método não suportado, quando alcança o MVC |
 | 409 | Unicidade/FK do banco, Appointment ativo no slot ou segundo prontuário |
@@ -149,4 +157,4 @@ Formato único ApiErrorResponse: `timestamp,status,error,message,path,details`. 
 
 `./mvnw.cmd test` no Windows ou `./mvnw test` no Linux/macOS. Sem RUN_POSTGRES_TESTS=true, os testes condicionados a PostgreSQL são ignorados intencionalmente. Para executar todos, usar banco exclusivo, configurar DB_URL/DB_USERNAME/DB_PASSWORD e RUN_POSTGRES_TESTS=true, executar verify. Não usar banco de desenvolvimento.
 
-SecurityHttpTest usa filtros/JWT reais e services simulados. AdministrativeControllersTest testa MVC isoladamente sem filtro, complementado pela comprovação de negação dos mesmos endpoints em SecurityHttpTest. ApiPostgresTest cobre login, BCrypt e fluxo de pacientes HTTP com persistência real. Os números e gates desta rodada estão no relatório de auditoria; contagem não representa cobertura percentual.
+SecurityHttpTest usa filtros/JWT reais e services simulados. OwnershipPolicyServiceTest cobre as permissões e transições por ator. CurrentUserAccessTest cobre a resolução pelo subject e o vínculo ausente. OwnershipPostgresTest prova filtros e 403 entre dois profissionais persistidos. ApiPostgresTest cobre login, BCrypt e fluxo de pacientes HTTP com persistência real. Os números e gates desta rodada estão no relatório de auditoria; contagem não representa cobertura percentual.

@@ -52,11 +52,11 @@ A branch `feature/sprint2-api-integration` foi criada da develop após os quatro
 | Professional PUT/DELETE | Controller preparado na feature | MVC e Security testados | Sim | exclusivo de ADMIN; FKs podem impedir delete |
 | User CRUD administrativo | Controller preparado na feature | MVC e Security testados | Sim | exclusivo de ADMIN; delete respeita schema histórico |
 | Specialty CRUD | Controller preparado na feature | MVC e Security testados | Sim | leitura pelos três perfis; escrita por ADMIN |
-| Schedule create/list | Sim, service e controller | Sim, unitário, controller e PostgreSQL | Sim | definir perfis autorizados |
-| Appointment completo | Sim, service e controller | Sim, incluindo transições, cancelamento e concorrência | Sim | definir perfis autorizados |
+| Schedule create/list | Sim, service e controller | Sim, unitário, HTTP, ownership e PostgreSQL | Sim | nenhuma |
+| Appointment completo | Sim, service e controller | Sim, incluindo ownership, transições, cancelamento e concorrência | Sim | nenhuma |
 | Dupla reserva | Protegida no backend pelo lock do slot | Sim: duas transações simultâneas geram uma reserva e um conflito | Sim | sem UNIQUE em Appointment, conforme decisão |
 | MedicalRecord entity/repository/UNIQUE | Sim, modelo simplificado | Sim, inclusive conversão histórica e UNIQUE | Sim | nenhuma de modelo |
-| MedicalRecord API | Sim, sem DELETE | Sim, service e controller | Sim | definir perfis autorizados |
+| MedicalRecord API | Sim, sem DELETE | Sim, service, controller, ownership e PostgreSQL | Sim | nenhuma |
 | Measurement | Não, conforme decisão | Não aplicável | Sim | aguardar schema formal |
 | CORS externalizado | Sim na feature de preparação | Sim, config e HTTP | Sim | definir origem real do frontend por ambiente |
 | Primeiro ADMIN | Provisionamento manual documentado | Procedimento não contém credencial | Sim | execução é responsabilidade do ambiente |
@@ -87,9 +87,12 @@ MedicalRecord representa Appointment 1:0..1 corretamente no schema/entity. V15 a
 | feature final, atualização V14 para V15 | 221 executados; zero falhas/erros/ignorados; conversão histórica; JPA validate; verify; JAR |
 | feature final, banco vazio | 221 executados; zero falhas/erros/ignorados; Flyway V1–V15; JPA validate; verify; JAR |
 | feature final, runtime e smoke HTTP | JAR iniciado em banco exclusivo; 25 cenários aprovados |
+| feature final, matriz de ownership | 253 executados; zero falhas/erros/ignorados; Flyway V1–V15; JPA validate; verify; JAR |
+| ownership PostgreSQL entre dois profissionais | filtros de Schedule, Appointment e MedicalRecord e 403 para recurso alheio aprovados |
+| feature final, runtime com ownership | JAR iniciado em banco exclusivo; 34 cenários HTTP aprovados |
 
 O runtime usou banco PostgreSQL exclusivo e segredo JWT efêmero. Flyway criou o schema vazio, o JPA iniciou com ddl-auto=validate e o JAR respondeu aos smoke tests de login válido e inválido, token ausente e inválido, acesso permitido e negado, validação 400, recurso inexistente 404, rotas sem política 403, cadastro público negado, persistência de Patient, duplicidade, DELETE de Patient bloqueado e CORS configurado e não configurado. Credenciais, hash e token temporários foram removidos ao final.
 
 ## Estado de prontidão
 
-O backend ainda não está concluído. Status inicial, máquina de estados, cancelamento lógico, lock do Schedule, MedicalRecord simplificado e matriz administrativa estão implementados. Flyway V1–V15, JPA validate, testes PostgreSQL, build, JAR e smoke HTTP passaram em ambientes exclusivos. Resta aprovar a matriz de acesso de Schedule, Appointment e MedicalRecord; até essa decisão, as rotas permanecem negadas para todos os perfis. O CI da branch final será o último gate automatizado após a publicação.
+A matriz de acesso de Schedule, Appointment e MedicalRecord foi implementada com resolução JWT subject → User → Professional, filtros de listagem e 403 para ownership alheio ou vínculo ausente. Status inicial, máquina de estados, cancelamento lógico, lock do Schedule, MedicalRecord simplificado e matriz administrativa também estão implementados. Flyway V1–V15, JPA validate, 253 testes PostgreSQL, build, JAR e 34 smoke tests HTTP passaram em ambientes exclusivos. Resta obter CI verde na PR antes de declarar o backend concluído.

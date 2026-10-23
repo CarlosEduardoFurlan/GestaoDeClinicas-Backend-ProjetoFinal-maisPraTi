@@ -7,6 +7,8 @@ import br.com.clinica.exception.BusinessException;
 import br.com.clinica.exception.ResourceNotFoundException;
 import br.com.clinica.repository.ProfessionalRepository;
 import br.com.clinica.repository.ScheduleRepository;
+import br.com.clinica.security.CurrentUserAccess;
+import br.com.clinica.security.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +19,13 @@ import java.util.List;
 public class ScheduleService {
     private final ScheduleRepository schedules;
     private final ProfessionalRepository professionals;
+    private final CurrentUserAccess access;
 
     @Transactional
     public ScheduleResponseDTO create(ScheduleRequestDTO request) {
+        if (access.role() == Role.PROFESSIONAL) {
+            access.requireOwnProfessional(request.professionalId());
+        }
         var professional = professionals.findById(request.professionalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
         if (schedules.existsByProfessional_IdAndDateAndTime(request.professionalId(), request.date(), request.time())) {
@@ -34,7 +40,10 @@ public class ScheduleService {
 
     @Transactional(readOnly = true)
     public List<ScheduleResponseDTO> findAll() {
-        return schedules.findAll().stream().map(this::toResponse).toList();
+        var result = access.role() == Role.PROFESSIONAL
+                ? schedules.findAllByProfessional_Id(access.professionalId())
+                : schedules.findAll();
+        return result.stream().map(this::toResponse).toList();
     }
 
     private ScheduleResponseDTO toResponse(Schedule slot) {

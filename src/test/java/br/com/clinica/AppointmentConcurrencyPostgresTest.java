@@ -21,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -51,6 +54,7 @@ class AppointmentConcurrencyPostgresTest {
 
     @Test
     void serializesConcurrentReservationsAndReleasesSlotAfterCancellation() throws Exception {
+        authenticateAdmin();
         var suffix = UUID.randomUUID().toString();
         var specialty = specialtyService.create(new SpecialtyRequestDTO("esp-" + suffix, null));
         var email = suffix + "@example.invalid";
@@ -70,6 +74,7 @@ class AppointmentConcurrencyPostgresTest {
         var ready = new CountDownLatch(2);
         var start = new CountDownLatch(1);
         Callable<Object> attempt = () -> {
+            authenticateAdmin();
             ready.countDown();
             start.await();
             try {
@@ -98,6 +103,12 @@ class AppointmentConcurrencyPostgresTest {
             var replacement = appointmentService.create(request);
             assertEquals("Agendada", replacement.statusName());
         }
+    }
+
+    private static void authenticateAdmin() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated("admin@example.invalid", "n/a",
+                        java.util.List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
     }
 
     private static AddressRequestDTO address() {

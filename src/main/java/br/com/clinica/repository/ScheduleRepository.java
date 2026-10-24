@@ -11,9 +11,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, UUID> {
     boolean existsByProfessional_IdAndDateAndTime(UUID professionalId, LocalDate date, LocalTime time);
+    List<Schedule> findAllByProfessional_Id(UUID professionalId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

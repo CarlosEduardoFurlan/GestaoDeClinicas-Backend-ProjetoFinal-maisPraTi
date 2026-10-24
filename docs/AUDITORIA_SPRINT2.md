@@ -29,13 +29,15 @@ Após cada merge realizado, develop foi atualizada e validada com PostgreSQL exc
 - Relatório do integrante 2 registra que CRUD/DTOs/testes de Patient já existiam e que DELETE HTTP permanece bloqueado.
 - Nenhuma migration histórica foi alterada.
 
-## Trabalho na feature de preparação da API
+## Trabalho nas features de API e integração
 
 A branch feature/sprint2-api-preparation foi criada da develop após as PRs #12 e #14 e atualizada após o merge da PR #11. Ela prepara UserController, SpecialtyController e PUT/DELETE de ProfessionalController, sempre delegando aos services e usando DTOs e @Valid. A matriz administrativa aprovada foi aplicada no SecurityConfig e coberta com Security real.
 
 CORS foi externalizado por APP_CORS_ALLOWED_ORIGINS, vazio por padrão, sem wildcard, caminhos, query, fragmentos ou userinfo. Não altera autenticação/autorização. O bootstrap manual e seguro do primeiro ADMIN foi documentado sem credencial ou hash real.
 
-O fluxo HTTP de Patient foi ampliado em ApiPostgresTest para criação, consulta, atualização, 404, validação e bloqueio de DELETE com persistência real para ADMIN e RECEPTIONIST.
+O fluxo HTTP de Patient foi ampliado em ApiPostgresTest para criação, consulta, atualização, 404, validação e bloqueio de DELETE com persistência real para ADMIN e RECEPTIONIST. A PR #15 passou por 214 testes PostgreSQL e CI verde e foi mergeada na develop em a8942c9.
+
+A branch `feature/sprint2-api-integration` foi criada da develop após os quatro integrantes. Ela implementa os controllers de Schedule e Appointment e o módulo simplificado de MedicalRecord. As rotas desses três módulos permanecem bloqueadas por padrão porque sua matriz de perfis ainda não foi aprovada.
 
 ## Matriz de requisitos
 
@@ -50,11 +52,11 @@ O fluxo HTTP de Patient foi ampliado em ApiPostgresTest para criação, consulta
 | Professional PUT/DELETE | Controller preparado na feature | MVC e Security testados | Sim | exclusivo de ADMIN; FKs podem impedir delete |
 | User CRUD administrativo | Controller preparado na feature | MVC e Security testados | Sim | exclusivo de ADMIN; delete respeita schema histórico |
 | Specialty CRUD | Controller preparado na feature | MVC e Security testados | Sim | leitura pelos três perfis; escrita por ADMIN |
-| Schedule create/list | Sim, develop após PR #11 | Sim, unitário e PostgreSQL | Sim | controller na integração final |
-| Appointment service completo | Sim, develop após PR #11 | Sim, incluindo transições e concorrência | Sim | controller na integração final |
+| Schedule create/list | Sim, service e controller | Sim, unitário, HTTP, ownership e PostgreSQL | Sim | nenhuma |
+| Appointment completo | Sim, service e controller | Sim, incluindo ownership, transições, cancelamento e concorrência | Sim | nenhuma |
 | Dupla reserva | Protegida no backend pelo lock do slot | Sim: duas transações simultâneas geram uma reserva e um conflito | Sim | sem UNIQUE em Appointment, conforme decisão |
-| MedicalRecord entity/repository/UNIQUE | Modelo histórico presente | UNIQUE e opcionalidade testados na PR #11 | Sim | adequar para notes na integração final |
-| MedicalRecord API | Não | Não | Decisão registrada | implementar modelo simplificado sem Measurement |
+| MedicalRecord entity/repository/UNIQUE | Sim, modelo simplificado | Sim, inclusive conversão histórica e UNIQUE | Sim | nenhuma de modelo |
+| MedicalRecord API | Sim, sem DELETE | Sim, service, controller, ownership e PostgreSQL | Sim | nenhuma |
 | Measurement | Não, conforme decisão | Não aplicável | Sim | aguardar schema formal |
 | CORS externalizado | Sim na feature de preparação | Sim, config e HTTP | Sim | definir origem real do frontend por ambiente |
 | Primeiro ADMIN | Provisionamento manual documentado | Procedimento não contém credencial | Sim | execução é responsabilidade do ambiente |
@@ -66,7 +68,7 @@ V13 cria UNIQUE em schedule(id_professional,date,time). Appointments armazena pr
 
 V14 cria o catálogo oficial de status. A reserva usa o slot único de V13 como recurso de sincronização: uma transação adquire lock pessimista no Schedule e então verifica Appointment ativo. Cancelados não bloqueiam o slot. Não foi criada UNIQUE em Appointment.
 
-MedicalRecord representa Appointment 1:0..1 corretamente no schema/entity. A decisão de 22/10/2026 aprovou o modelo simplificado com notes e uma nova migration que converte os três campos históricos antes de removê-los. A implementação pertence à branch final de integração.
+MedicalRecord representa Appointment 1:0..1 corretamente no schema/entity. V15 adiciona notes, converte symptoms/diagnosis/prescription de registros existentes para texto legível, torna notes obrigatório e remove as três colunas antigas. A validação PostgreSQL partiu de V14 com um prontuário histórico e comprovou a preservação do conteúdo, a ausência das colunas antigas e a permanência de `UNIQUE(id_appointment)`.
 
 ## Evidências de testes e gates
 
@@ -77,12 +79,20 @@ MedicalRecord representa Appointment 1:0..1 corretamente no schema/entity. A dec
 | develop após PR #12 | 145 executados; zero falhas/erros/ignorados; PostgreSQL; verify; JAR |
 | develop após PR #14 | 145 executados; zero falhas/erros/ignorados; PostgreSQL; verify; JAR |
 | PR #11 concluída | 183 executados; zero falhas/erros/ignorados; PostgreSQL; Flyway V1–V14; concorrência; verify; JAR; CI verde |
+| PR #15 concluída | 214 executados; zero falhas/erros/ignorados; PostgreSQL; verify; JAR; CI verde |
 | feature de preparação, suíte convencional mais recente | 169 totais; 158 executados; 11 condicionados ao PostgreSQL ignorados; zero falhas/erros |
 | feature de preparação, validação final PostgreSQL | 170 executados; zero falhas/erros/ignorados; Flyway V1–V13; JPA validate; verify; JAR |
 | feature de preparação, runtime e smoke HTTP | JAR iniciado em localhost com banco exclusivo; 21 cenários aprovados |
+| feature final, suíte convencional | 204 executados; 16 condicionados ao PostgreSQL ignorados; zero falhas/erros |
+| feature final, atualização V14 para V15 | 221 executados; zero falhas/erros/ignorados; conversão histórica; JPA validate; verify; JAR |
+| feature final, banco vazio | 221 executados; zero falhas/erros/ignorados; Flyway V1–V15; JPA validate; verify; JAR |
+| feature final, runtime e smoke HTTP | JAR iniciado em banco exclusivo; 25 cenários aprovados |
+| feature final, matriz de ownership | 253 executados; zero falhas/erros/ignorados; Flyway V1–V15; JPA validate; verify; JAR |
+| ownership PostgreSQL entre dois profissionais | filtros de Schedule, Appointment e MedicalRecord e 403 para recurso alheio aprovados |
+| feature final, runtime com ownership | JAR iniciado em banco exclusivo; 34 cenários HTTP aprovados |
 
 O runtime usou banco PostgreSQL exclusivo e segredo JWT efêmero. Flyway criou o schema vazio, o JPA iniciou com ddl-auto=validate e o JAR respondeu aos smoke tests de login válido e inválido, token ausente e inválido, acesso permitido e negado, validação 400, recurso inexistente 404, rotas sem política 403, cadastro público negado, persistência de Patient, duplicidade, DELETE de Patient bloqueado e CORS configurado e não configurado. Credenciais, hash e token temporários foram removidos ao final.
 
 ## Estado de prontidão
 
-O backend ainda não está concluído. As decisões anteriores foram aprovadas em 22/10/2026: status inicial Agendada, máquina de estados, cancelamento lógico, lock do Schedule, MedicalRecord simplificado e matriz administrativa. A PR #11 foi integrada. A próxima etapa é integrar a PR #15 e finalizar controllers de Schedule/Appointment, MedicalRecord, documentação e gates finais na branch `feature/sprint2-api-integration`.
+A matriz de acesso de Schedule, Appointment e MedicalRecord foi implementada com resolução JWT subject → User → Professional, filtros de listagem e 403 para ownership alheio ou vínculo ausente. Status inicial, máquina de estados, cancelamento lógico, lock do Schedule, MedicalRecord simplificado e matriz administrativa também estão implementados. Flyway V1–V15, JPA validate, 253 testes PostgreSQL, build, JAR e 34 smoke tests HTTP passaram em ambientes exclusivos. Resta obter CI verde na PR antes de declarar o backend concluído.

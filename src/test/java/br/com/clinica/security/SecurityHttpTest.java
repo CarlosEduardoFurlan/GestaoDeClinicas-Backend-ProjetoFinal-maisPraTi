@@ -41,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * são simulados. Não carrega application.properties nem conecta ao banco.
  */
 @WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class,
-        UserController.class, SpecialtyController.class},
+        UserController.class, SpecialtyController.class, ScheduleController.class,
+        AppointmentController.class, MedicalRecordController.class},
         properties = "spring.config.location=optional:classpath:/security-test-isolated.properties")
 @Import({SecurityConfig.class, JwtConfig.class, PasswordConfig.class, AuthenticationConfig.class,
         CustomUserDetailsService.class, JwtService.class, AuthService.class,
@@ -67,6 +68,9 @@ class SecurityHttpTest {
     @MockitoBean PatientService patients;
     @MockitoBean UserService userService;
     @MockitoBean SpecialtyService specialties;
+    @MockitoBean ScheduleService schedules;
+    @MockitoBean AppointmentService appointments;
+    @MockitoBean MedicalRecordService medicalRecords;
 
     @Test void corsAllowsOnlyConfiguredOriginAndDoesNotBypassAuthentication() throws Exception {
         mvc.perform(options("/api/patients").header("Origin", "https://frontend.example.test")
@@ -135,15 +139,129 @@ class SecurityHttpTest {
 
     @ParameterizedTest
     @EnumSource(Role.class)
-    void routesStillWithoutApprovedPolicyStayDenied(Role role) throws Exception {
+    void explicitlyBlockedRoutesStayDenied(Role role) throws Exception {
         String jwt = token(List.of("ROLE_" + role.name()));
         String id = UUID.randomUUID().toString();
-        for (var request : List.of(delete("/api/patients/" + id), post("/api/auth/register"),
-                get("/api/schedules"), get("/api/appointments"), get("/api/medical-records"))) {
+        for (var request : List.of(delete("/api/patients/" + id), post("/api/auth/register"))) {
             mvc.perform(request.header("Authorization", "Bearer " + jwt).contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isForbidden());
         }
         verifyNoInteractions(patients);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void allRolesCanReadSchedulesAndAppointments(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        String id = UUID.randomUUID().toString();
+        for (String path : List.of("/api/schedules", "/api/appointments", "/api/appointments/" + id)) {
+            mvc.perform(get(path).header("Authorization", "Bearer " + jwt)).andExpect(status().isOk());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"ADMIN", "PROFESSIONAL"})
+    void adminAndProfessionalCanCreateSchedules(Role role) throws Exception {
+        var body = """
+                {"professionalId":"%s","date":"2027-01-10","time":"12:00:00"}
+                """.formatted(UUID.randomUUID());
+        mvc.perform(post("/api/schedules")
+                        .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name())))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+    }
+
+    @Test void receptionistCannotCreateSchedule() throws Exception {
+        mvc.perform(post("/api/schedules")
+                        .header("Authorization", "Bearer " + token(List.of("ROLE_RECEPTIONIST")))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(schedules);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"ADMIN", "RECEPTIONIST"})
+    void administrativeRolesCanCreateAndCancelAppointments(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        var body = """
+                {"patientId":"%s","professionalId":"%s","date":"2027-01-10","time":"12:00:00"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID());
+        mvc.perform(post("/api/appointments").header("Authorization", "Bearer " + jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+        mvc.perform(delete("/api/appointments/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test void professionalCannotCreateOrCancelAppointments() throws Exception {
+        String jwt = token(List.of("ROLE_PROFESSIONAL"));
+        mvc.perform(post("/api/appointments").header("Authorization", "Bearer " + jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/appointments/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(appointments);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void allRolesCanReachAppointmentStatusService(Role role) throws Exception {
+        mvc.perform(put("/api/appointments/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statusId\":\"%s\"}".formatted(UUID.randomUUID())))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"ADMIN", "PROFESSIONAL"})
+    void adminAndProfessionalCanReadMedicalRecords(Role role) throws Exception {
+        String jwt = token(List.of("ROLE_" + role.name()));
+        mvc.perform(get("/api/medical-records").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/medical-records/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isOk());
+    }
+
+    @Test void receptionistCannotAccessMedicalRecords() throws Exception {
+        String jwt = token(List.of("ROLE_RECEPTIONIST"));
+        for (var request : List.of(get("/api/medical-records"), get("/api/medical-records/" + UUID.randomUUID()),
+                post("/api/medical-records"), put("/api/medical-records/" + UUID.randomUUID()))) {
+            mvc.perform(request.header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(medicalRecords);
+    }
+
+    @Test void onlyProfessionalCanAuthorMedicalRecords() throws Exception {
+        String professionalJwt = token(List.of("ROLE_PROFESSIONAL"));
+        mvc.perform(post("/api/medical-records").header("Authorization", "Bearer " + professionalJwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"appointmentId\":\"%s\",\"notes\":\"texto\"}".formatted(UUID.randomUUID())))
+                .andExpect(status().isCreated());
+        mvc.perform(put("/api/medical-records/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + professionalJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"notes\":\"texto\"}"))
+                .andExpect(status().isOk());
+
+        String adminJwt = token(List.of("ROLE_ADMIN"));
+        mvc.perform(post("/api/medical-records").header("Authorization", "Bearer " + adminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/medical-records/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + adminJwt)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/schedules", "/api/appointments", "/api/medical-records"})
+    void newProtectedRoutesRequireAuthentication(String path) throws Exception {
+        unauthorized(mvc.perform(get(path)), path);
     }
 
     @Test void administrativeRoutesRequireAuthentication() throws Exception {

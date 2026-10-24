@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.UUID;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @Transactional
 @EnabledIfEnvironmentVariable(named = "RUN_POSTGRES_TESTS", matches = "true")
+@WithMockUser(roles = "ADMIN")
 class ScheduleMedicalRecordPostgresTest {
     @DynamicPropertySource static void properties(DynamicPropertyRegistry registry) {
         registry.add("security.jwt.secret", JwtTestSupport::randomSecret);
@@ -75,7 +77,7 @@ class ScheduleMedicalRecordPostgresTest {
     @Test void appointmentCanExistWithoutMedicalRecordAndBeListed() {
         var appointment = appointment();
         entityManager.clear();
-        assertEquals(0, records.count());
+        assertFalse(records.existsByAppointment_Id(appointment.getId()));
         var found = appointmentService.findAll().stream().filter(a -> a.id().equals(appointment.getId())).findFirst().orElseThrow();
         assertEquals(patient.getId(), found.patientId()); assertEquals(status.getId(), found.statusId());
         assertEquals(501, found.notes().length());
@@ -83,9 +85,9 @@ class ScheduleMedicalRecordPostgresTest {
 
     @Test void databaseRejectsSecondMedicalRecordForSameAppointment() {
         var appointment = appointment();
-        records.saveAndFlush(new MedicalRecord(null, appointment, "symptoms", "diagnosis", "prescription"));
+        records.saveAndFlush(new MedicalRecord(null, appointment, "notes"));
         assertThrows(DataIntegrityViolationException.class,
-                () -> records.saveAndFlush(new MedicalRecord(null, appointment, "other", "other", "other")));
+                () -> records.saveAndFlush(new MedicalRecord(null, appointment, "other")));
     }
 
     private Appointment appointment() {

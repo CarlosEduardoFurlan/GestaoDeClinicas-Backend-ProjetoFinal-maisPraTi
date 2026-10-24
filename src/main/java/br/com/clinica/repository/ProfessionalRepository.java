@@ -1,5 +1,6 @@
 package br.com.clinica.repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,5 +10,6 @@ import br.com.clinica.entity.Professional;
 
 @Repository
 public interface ProfessionalRepository extends JpaRepository<Professional, UUID> {
-boolean existsByRegister(String register);
+    boolean existsByRegister(String register);
+    Optional<Professional> findByUser_Email(String email);
 }

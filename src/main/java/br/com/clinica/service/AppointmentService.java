@@ -13,9 +13,12 @@ import br.com.clinica.repository.PatientRepository;
 import br.com.clinica.repository.ProfessionalRepository;
 import br.com.clinica.repository.ScheduleRepository;
 import br.com.clinica.repository.StatusRepository;
+import br.com.clinica.security.CurrentUserAccess;
+import br.com.clinica.security.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Map;
@@ -43,9 +46,13 @@ public class AppointmentService {
     private final ProfessionalRepository professionals;
     private final ScheduleRepository schedules;
     private final StatusRepository statuses;
+    private final CurrentUserAccess access;
 
     @Transactional
     public AppointmentResponseDTO create(AppointmentRequestDTO request) {
+        if (access.role() == Role.PROFESSIONAL) {
+            throw new AccessDeniedException("Professional não pode criar agendamentos.");
+        }
         var patient = patients.findById(request.patientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado."));
         var professional = professionals.findById(request.professionalId())
@@ -71,26 +78,36 @@ public class AppointmentService {
 
     @Transactional(readOnly = true)
     public List<AppointmentResponseDTO> findAll() {
-        return appointments.findAll().stream().map(this::toResponse).toList();
+        var result = access.role() == Role.PROFESSIONAL
+                ? appointments.findAllByProfessional_Id(access.professionalId())
+                : appointments.findAll();
+        return result.stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public AppointmentResponseDTO findById(UUID id) {
-        return toResponse(findAppointment(id));
+        var appointment = findAppointment(id);
+        requireAppointmentOwnershipWhenProfessional(appointment);
+        return toResponse(appointment);
     }
 
     @Transactional
     public AppointmentResponseDTO updateStatus(UUID id, AppointmentStatusUpdateRequestDTO request) {
         var appointment = findAppointment(id);
+        requireAppointmentOwnershipWhenProfessional(appointment);
         var targetStatus = statuses.findById(request.statusId())
                 .orElseThrow(() -> new ResourceNotFoundException("Status não encontrado."));
         validateTransition(appointment.getStatus(), targetStatus);
+        validateActorTransition(appointment, targetStatus);
         appointment.setStatus(targetStatus);
         return toResponse(appointments.save(appointment));
     }
 
     @Transactional
     public void cancel(UUID id) {
+        if (access.role() == Role.PROFESSIONAL) {
+            throw new AccessDeniedException("Professional não pode cancelar agendamentos.");
+        }
         var appointment = findAppointment(id);
         var cancelled = findStatusByDescription(CANCELLED);
         validateTransition(appointment.getStatus(), cancelled);
@@ -113,6 +130,32 @@ public class AppointmentService {
         if (allowedTargets == null || !allowedTargets.contains(target.getDescription())) {
             throw new BusinessException("Transição de status não permitida: "
                     + current.getDescription() + " -> " + target.getDescription() + ".");
+        }
+    }
+
+    private void validateActorTransition(Appointment appointment, Status target) {
+        var role = access.role();
+        if (role == Role.ADMIN) {
+            return;
+        }
+        var current = appointment.getStatus().getDescription();
+        var targetDescription = target.getDescription();
+        if (role == Role.RECEPTIONIST) {
+            if (SCHEDULED.equals(current) && CONFIRMED.equals(targetDescription)) {
+                return;
+            }
+            throw new AccessDeniedException("Recepção não pode executar esta transição de status.");
+        }
+        if ((CONFIRMED.equals(current) && IN_PROGRESS.equals(targetDescription))
+                || (IN_PROGRESS.equals(current) && COMPLETED.equals(targetDescription))) {
+            return;
+        }
+        throw new AccessDeniedException("Professional não pode executar esta transição de status.");
+    }
+
+    private void requireAppointmentOwnershipWhenProfessional(Appointment appointment) {
+        if (access.role() == Role.PROFESSIONAL) {
+            access.requireOwnProfessional(appointment.getProfessional().getId());
         }
     }
 

@@ -14,6 +14,8 @@ import br.com.clinica.repository.PatientRepository;
 import br.com.clinica.repository.ProfessionalRepository;
 import br.com.clinica.repository.ScheduleRepository;
 import br.com.clinica.repository.StatusRepository;
+import br.com.clinica.security.CurrentUserAccess;
+import br.com.clinica.security.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,8 +43,9 @@ class AppointmentServiceTest {
     private final ProfessionalRepository professionals = mock(ProfessionalRepository.class);
     private final ScheduleRepository schedules = mock(ScheduleRepository.class);
     private final StatusRepository statuses = mock(StatusRepository.class);
+    private final CurrentUserAccess access = mock(CurrentUserAccess.class);
     private final AppointmentService service = new AppointmentService(
-            appointments, patients, professionals, schedules, statuses);
+            appointments, patients, professionals, schedules, statuses, access);
 
     private final Patient patient = new Patient();
     private final Professional professional = new Professional();
@@ -51,6 +54,7 @@ class AppointmentServiceTest {
 
     @BeforeEach
     void entities() {
+        when(access.role()).thenReturn(Role.ADMIN);
         patient.setId(UUID.randomUUID());
         patient.setName("Maria");
         professional.setId(UUID.randomUUID());

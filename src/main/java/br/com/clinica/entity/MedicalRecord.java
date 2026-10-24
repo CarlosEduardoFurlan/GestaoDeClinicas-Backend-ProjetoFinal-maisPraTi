@@ -29,10 +29,6 @@ public class MedicalRecord {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_appointment", nullable = false, unique = true)
     private Appointment appointment;
-    @Column(name = "symptoms", nullable = false, columnDefinition = "text")
-    private String symptoms;
-    @Column(name = "diagnosis", nullable = false, columnDefinition = "text")
-    private String diagnosis;
-    @Column(name = "prescription", nullable = false, columnDefinition = "text")
-    private String prescription;
+    @Column(name = "notes", nullable = false, columnDefinition = "text")
+    private String notes;
 }

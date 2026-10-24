@@ -4,6 +4,8 @@ import br.com.clinica.dto.request.ScheduleRequestDTO;
 import br.com.clinica.entity.*;
 import br.com.clinica.exception.*;
 import br.com.clinica.repository.*;
+import br.com.clinica.security.CurrentUserAccess;
+import br.com.clinica.security.Role;
 import org.junit.jupiter.api.Test;
 import java.time.*;
 import java.util.*;
@@ -13,9 +15,11 @@ import static org.mockito.Mockito.*;
 class ScheduleServiceTest {
     private final ScheduleRepository schedules = mock(ScheduleRepository.class);
     private final ProfessionalRepository professionals = mock(ProfessionalRepository.class);
-    private final ScheduleService service = new ScheduleService(schedules, professionals);
+    private final CurrentUserAccess access = mock(CurrentUserAccess.class);
+    private final ScheduleService service = new ScheduleService(schedules, professionals, access);
     private final ScheduleRequestDTO request = new ScheduleRequestDTO(UUID.randomUUID(), LocalDate.of(2000, 1, 1), LocalTime.NOON);
 
+    @org.junit.jupiter.api.BeforeEach void actor() { when(access.role()).thenReturn(Role.ADMIN); }
     @Test void createsSlotWithoutInventingTemporalRestriction() {
         var professional = new Professional(); professional.setId(request.professionalId()); professional.setName("Ana");
         when(professionals.findById(request.professionalId())).thenReturn(Optional.of(professional));

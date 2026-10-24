@@ -107,10 +107,14 @@ class ApiPostgresTest {
                 .andExpect(status().isBadRequest());
     }
     @Test void migrationsAndJpaStart() {
-        assertEquals(14, jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class));
+        assertEquals(15, jdbc.queryForObject("select count(*) from flyway_schema_history where success", Integer.class));
         assertEquals(5, jdbc.queryForObject("select count(*) from status where description in "
                 + "('Agendada','Confirmada','Em atendimento','Concluída','Cancelada')", Integer.class));
         assertEquals("text", jdbc.queryForObject("select data_type from information_schema.columns where table_name='appointments' and column_name='notes'",String.class));
+        assertEquals("NO", jdbc.queryForObject("select is_nullable from information_schema.columns "
+                + "where table_name='medical_records' and column_name='notes'", String.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from information_schema.columns where table_name='medical_records' "
+                + "and column_name in ('symptoms','diagnosis','prescription')", Integer.class));
         assertEquals(3, jdbc.queryForObject("select count(*) from pg_constraint where conname in ('uc_id_user', 'uc_medical_records', 'uc_schedule') and contype='u'",Integer.class));
         assertEquals(60, jdbc.queryForObject("select character_maximum_length from information_schema.columns where table_name='users' and column_name='password'",Integer.class));
     }

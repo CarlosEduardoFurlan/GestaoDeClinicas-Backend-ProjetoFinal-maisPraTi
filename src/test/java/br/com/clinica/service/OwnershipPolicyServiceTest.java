@@ -85,6 +85,19 @@ class OwnershipPolicyServiceTest {
                 new AppointmentStatusUpdateRequestDTO(progress.getId())));
     }
 
+    @Test void foreignAppointmentOwnershipIsCheckedBeforeStatusOrTransition() {
+        var other = appointment(AppointmentService.CANCELLED);
+        var arbitraryStatusId = UUID.randomUUID();
+        when(access.role()).thenReturn(Role.PROFESSIONAL);
+        when(appointments.findById(other.getId())).thenReturn(Optional.of(other));
+        doThrow(new AccessDeniedException("denied")).when(access)
+                .requireOwnProfessional(other.getProfessional().getId());
+
+        assertThrows(AccessDeniedException.class, () -> appointmentService.updateStatus(other.getId(),
+                new AppointmentStatusUpdateRequestDTO(arbitraryStatusId)));
+        verify(statuses, never()).findById(any());
+    }
+
     @Test void actorSpecificAppointmentTransitionsAreEnforced() {
         var scheduled = appointment(AppointmentService.SCHEDULED);
         var confirmed = status(AppointmentService.CONFIRMED);

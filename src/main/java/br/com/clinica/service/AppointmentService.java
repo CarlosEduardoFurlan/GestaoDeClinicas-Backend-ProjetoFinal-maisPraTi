@@ -94,6 +94,7 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponseDTO updateStatus(UUID id, AppointmentStatusUpdateRequestDTO request) {
         var appointment = findAppointment(id);
+        requireAppointmentOwnershipWhenProfessional(appointment);
         var targetStatus = statuses.findById(request.statusId())
                 .orElseThrow(() -> new ResourceNotFoundException("Status não encontrado."));
         validateTransition(appointment.getStatus(), targetStatus);
@@ -145,7 +146,6 @@ public class AppointmentService {
             }
             throw new AccessDeniedException("Recepção não pode executar esta transição de status.");
         }
-        requireAppointmentOwnershipWhenProfessional(appointment);
         if ((CONFIRMED.equals(current) && IN_PROGRESS.equals(targetDescription))
                 || (IN_PROGRESS.equals(current) && COMPLETED.equals(targetDescription))) {
             return;

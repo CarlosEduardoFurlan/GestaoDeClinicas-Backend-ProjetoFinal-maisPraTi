@@ -28,25 +28,29 @@ class PatientServiceTest {
         patient = new Patient(); patient.setId(UUID.randomUUID()); patient.setName("Maria");
         patient.setCpf("12345678901"); patient.setAddress(address);
         request = new PatientCreateRequest("Maria", "12345678901", LocalDate.of(1990,5,20), null,
-                "51999999999", "maria@example.com", "F", address.getId());
+                "51999999999", "maria@example.com", "F", addressRequest("Rua A"));
+    }
+    private AddressRequestDTO addressRequest(String street) {
+        return new AddressRequestDTO(street, 10, null, "Centro", "Cuiaba", "MT", "78000-000");
     }
     @Test void createsPatientWithAddress() {
-        when(addresses.findById(address.getId())).thenReturn(Optional.of(address));
+        when(addresses.save(any())).thenAnswer(call -> { Address a=call.getArgument(0); a.setId(address.getId()); return a; });
         when(patients.save(any())).thenAnswer(call -> { Patient p=call.getArgument(0); p.setId(patient.getId()); return p; });
         var result=service.create(request);
         assertEquals(patient.getId(), result.id()); assertEquals(address.getId(), result.addressId());
         assertEquals(request.dateBirth(), result.dateBirth());
+        assertEquals("Rua A", result.address().address());
+        verify(addresses).save(any(Address.class));
     }
     @Test void rejectsDuplicateCpf() {
         when(patients.existsByCpf(request.cpf())).thenReturn(true);
         assertThrows(BusinessException.class, () -> service.create(request)); verify(patients, never()).save(any());
+        verify(addresses, never()).save(any());
     }
     @Test void rejectsDuplicateEmail() {
         when(patients.existsByEmailIgnoreCase(request.email())).thenReturn(true);
         assertThrows(BusinessException.class, () -> service.create(request)); verify(patients, never()).save(any());
-    }
-    @Test void rejectsMissingAddress() {
-        assertThrows(ResourceNotFoundException.class, () -> service.create(request)); verify(patients, never()).save(any());
+        verify(addresses, never()).save(any());
     }
     @Test void findsPatient() {
         when(patients.findById(patient.getId())).thenReturn(Optional.of(patient));
@@ -58,18 +62,26 @@ class PatientServiceTest {
     }
     @Test void updatesWithoutChangingCpf() {
         when(patients.findById(patient.getId())).thenReturn(Optional.of(patient));
-        when(addresses.findById(address.getId())).thenReturn(Optional.of(address));
         when(patients.save(any())).thenAnswer(call -> call.getArgument(0));
-        var update=new PatientUpdateRequest("Maria Nova", request.dateBirth(), null, request.cellPhone(), request.email(), "F", address.getId());
+        var update=new PatientUpdateRequest("Maria Nova", request.dateBirth(), null, request.cellPhone(), request.email(), "F", addressRequest("Rua Nova"));
         var result=service.update(patient.getId(),update);
         assertEquals("Maria Nova",result.name()); assertEquals(patient.getCpf(),result.cpf());
+        assertEquals(address.getId(), result.addressId()); assertEquals("Rua Nova", result.address().address());
+        verify(addresses).save(address);
         verify(patients).existsByEmailIgnoreCaseAndIdNot(request.email(),patient.getId());
     }
     @Test void rejectsEmailOfAnotherPatientOnUpdate() {
         when(patients.findById(patient.getId())).thenReturn(Optional.of(patient));
         when(patients.existsByEmailIgnoreCaseAndIdNot(request.email(),patient.getId())).thenReturn(true);
-        var update=new PatientUpdateRequest("Maria Nova",request.dateBirth(),null,request.cellPhone(),request.email(),"F",address.getId());
+        var update=new PatientUpdateRequest("Maria Nova",request.dateBirth(),null,request.cellPhone(),request.email(),"F",addressRequest("Rua Nova"));
         assertThrows(BusinessException.class,()->service.update(patient.getId(),update)); verify(patients,never()).save(any());
+    }
+    @Test void rejectsUpdateWhenAssociatedAddressIsMissing() {
+        patient.setAddress(null);
+        when(patients.findById(patient.getId())).thenReturn(Optional.of(patient));
+        var update=new PatientUpdateRequest("Maria Nova",request.dateBirth(),null,request.cellPhone(),null,"F",addressRequest("Rua Nova"));
+        assertThrows(ResourceNotFoundException.class,()->service.update(patient.getId(),update));
+        verify(addresses,never()).save(any()); verify(patients,never()).save(any());
     }
     @Test void deletesExistingPatient() {
         when(patients.findById(patient.getId())).thenReturn(Optional.of(patient)); service.delete(patient.getId()); verify(patients).delete(patient);

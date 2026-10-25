@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Filtros, BCrypt e JWT reais. Apenas persistência e serviços de negócio
  * são simulados. Não carrega application.properties nem conecta ao banco.
  */
-@WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class,
+@WebMvcTest(controllers = {AuthController.class, ProfessionalController.class, PatientController.class, StatusController.class,
         UserController.class, SpecialtyController.class, ScheduleController.class,
         AppointmentController.class, MedicalRecordController.class},
         properties = "spring.config.location=optional:classpath:/security-test-isolated.properties")
@@ -71,6 +71,8 @@ class SecurityHttpTest {
     @MockitoBean ScheduleService schedules;
     @MockitoBean AppointmentService appointments;
     @MockitoBean MedicalRecordService medicalRecords;
+    @MockitoBean StatusService statusService;
+    @MockitoBean br.com.clinica.repository.ProfessionalRepository professionalRepository;
 
     @Test void corsAllowsOnlyConfiguredOriginAndDoesNotBypassAuthentication() throws Exception {
         mvc.perform(options("/api/patients").header("Origin", "https://frontend.example.test")
@@ -446,13 +448,17 @@ class SecurityHttpTest {
     @EnumSource(value = Role.class, names = {"ADMIN", "RECEPTIONIST"})
     void approvedRolesCanCreatePatients(Role role) throws Exception {
         UUID addressId = UUID.randomUUID();
+        var address = new br.com.clinica.dto.request.AddressRequestDTO(
+                "Rua A", 1, null, "Centro", "Cuiaba", "MT", "78000-000");
         UUID patientId = UUID.randomUUID();
         var request = new PatientCreateRequest("Maria", "12345678901",
                 LocalDate.of(1990, 5, 20), null, "65999999999",
-                "maria@example.com", "F", addressId);
+                "maria@example.com", "F", address);
         when(patients.create(request)).thenReturn(new PatientResponse(patientId,
                 request.name(), request.cpf(), request.dateBirth(), request.telephone(),
-                request.cellPhone(), request.email(), request.gender(), addressId));
+                request.cellPhone(), request.email(), request.gender(), addressId,
+                new br.com.clinica.dto.response.AddressResponseDTO(address.address(), address.number(),
+                        address.complement(), address.district(), address.city(), address.uf(), address.zipCode())));
 
         mvc.perform(post("/api/patients")
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name())))
@@ -497,7 +503,7 @@ class SecurityHttpTest {
         UUID id = UUID.randomUUID();
         var patient = new PatientResponse(id, "Maria", "12345678901",
                 LocalDate.of(1990, 5, 20), null, "65999999999",
-                "maria@example.com", "F", UUID.randomUUID());
+                "maria@example.com", "F", UUID.randomUUID(), addressResponse());
         when(patients.findAll()).thenReturn(List.of(patient));
         mvc.perform(get("/api/patients")
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
@@ -529,7 +535,7 @@ class SecurityHttpTest {
         UUID id = UUID.randomUUID();
         var patient = new PatientResponse(id, "Maria", "12345678901",
                 LocalDate.of(1990, 5, 20), null, "65999999999",
-                "maria@example.com", "F", UUID.randomUUID());
+                "maria@example.com", "F", UUID.randomUUID(), addressResponse());
         when(patients.findById(id)).thenReturn(patient);
         mvc.perform(get("/api/patients/{id}", id)
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
@@ -592,9 +598,10 @@ class SecurityHttpTest {
     void approvedRolesCanUpdatePatients(Role role) throws Exception {
         UUID id = UUID.randomUUID();
         var body = new PatientUpdateRequest("Maria Atualizada", LocalDate.of(1990, 5, 20),
-                null, "65999999999", "maria@example.com", "F", UUID.randomUUID());
+                null, "65999999999", "maria@example.com", "F",
+                new br.com.clinica.dto.request.AddressRequestDTO("Rua A",1,null,"Centro","Cuiaba","MT","78000-000"));
         var response = new PatientResponse(id, body.name(), "12345678901", body.dateBirth(),
-                body.telephone(), body.cellPhone(), body.email(), body.gender(), body.addressId());
+                body.telephone(), body.cellPhone(), body.email(), body.gender(), UUID.randomUUID(), addressResponse());
         when(patients.update(id, body)).thenReturn(response);
         mvc.perform(put("/api/patients/{id}", id)
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name())))
@@ -637,7 +644,7 @@ class SecurityHttpTest {
     void approvedRolesCanListProfessionals(Role role) throws Exception {
         var professional = new br.com.clinica.dto.response.ProfessionalResponseDTO(
                 UUID.randomUUID(), "Ana", "CRM-12345", null, "65999999999",
-                "ana@example.com", "Cardiologia", "Cuiabá", UUID.randomUUID());
+                "ana@example.com", UUID.randomUUID(), "Cardiologia", addressResponse(), "Cuiabá", UUID.randomUUID());
         when(professionals.findAll()).thenReturn(List.of(professional));
         mvc.perform(get("/api/professionals")
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
@@ -667,7 +674,7 @@ class SecurityHttpTest {
         UUID id = UUID.randomUUID();
         var professional = new br.com.clinica.dto.response.ProfessionalResponseDTO(
                 id, "Ana", "CRM-12345", null, "65999999999",
-                "ana@example.com", "Cardiologia", "Cuiabá", UUID.randomUUID());
+                "ana@example.com", UUID.randomUUID(), "Cardiologia", addressResponse(), "Cuiabá", UUID.randomUUID());
         when(professionals.findById(id)).thenReturn(professional);
         mvc.perform(get("/api/professionals/{id}", id)
                 .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
@@ -712,6 +719,69 @@ class SecurityHttpTest {
                 .header("Authorization", "Bearer " + token(List.of("ROLE_ADMIN"))))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(professionals);
+    }
+
+    private br.com.clinica.dto.response.AddressResponseDTO addressResponse() {
+        return new br.com.clinica.dto.response.AddressResponseDTO(
+                "Rua A", 1, null, "Centro", "Cuiaba", "MT", "78000-000");
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void everyApprovedRoleCanReadStatuses(Role role) throws Exception {
+        var values = List.of(
+                new br.com.clinica.dto.response.StatusResponseDTO(UUID.randomUUID(), "Agendada"),
+                new br.com.clinica.dto.response.StatusResponseDTO(UUID.randomUUID(), "Confirmada"),
+                new br.com.clinica.dto.response.StatusResponseDTO(UUID.randomUUID(), "Em atendimento"),
+                new br.com.clinica.dto.response.StatusResponseDTO(UUID.randomUUID(), "Concluída"),
+                new br.com.clinica.dto.response.StatusResponseDTO(UUID.randomUUID(), "Cancelada"));
+        when(statusService.findAll()).thenReturn(values);
+        mvc.perform(get("/api/statuses")
+                        .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(5));
+    }
+
+    @Test
+    void statusCatalogRequiresAuthenticationAndHasNoMutableEndpoint() throws Exception {
+        unauthorized(mvc.perform(get("/api/statuses")), "/api/statuses");
+        String jwt = token(List.of("ROLE_ADMIN"));
+        for (var request : List.of(post("/api/statuses"), put("/api/statuses"), delete("/api/statuses"))) {
+            mvc.perform(request.header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void authenticatedUserCanReadOwnIdentity(Role role) throws Exception {
+        User user = user(role);
+        user.setId(UUID.randomUUID());
+        UUID professionalId = role == Role.PROFESSIONAL ? UUID.randomUUID() : null;
+        if (professionalId != null) {
+            var professional = new br.com.clinica.entity.Professional();
+            professional.setId(professionalId);
+            when(professionalRepository.findByUser_Id(user.getId())).thenReturn(Optional.of(professional));
+        }
+        mvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token(List.of("ROLE_" + role.name()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(user.getId().toString()))
+                .andExpect(jsonPath("$.name").value(user.getName()))
+                .andExpect(jsonPath("$.email").value(user.getEmail()))
+                .andExpect(jsonPath("$.profile").value(role.name()))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(professionalId == null
+                        ? jsonPath("$.professionalId").value(org.hamcrest.Matchers.nullValue())
+                        : jsonPath("$.professionalId").value(professionalId.toString()));
+    }
+
+    @Test
+    void authenticatedUserEndpointRejectsMissingAndInvalidTokens() throws Exception {
+        unauthorized(mvc.perform(get("/api/auth/me")), "/api/auth/me");
+        unauthorized(mvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer token-invalido")), "/api/auth/me");
     }
 
     private br.com.clinica.dto.request.ProfessionalRequestDTO professionalRequest(String profile) {

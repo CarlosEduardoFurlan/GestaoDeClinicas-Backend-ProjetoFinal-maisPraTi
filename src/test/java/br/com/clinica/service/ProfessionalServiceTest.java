@@ -38,8 +38,13 @@ class ProfessionalServiceTest {
     @Test void missingProfessionalIsNotFound() { assertThrows(ResourceNotFoundException.class,()->service.findById(UUID.randomUUID())); }
     @Test void mapsProfessionalWithoutExposingPassword() {
         var p=new Professional(); p.setId(UUID.randomUUID()); p.setName("Ana");
+        var specialty=new Specialty(); specialty.setId(request.specialtyId()); specialty.setName("Clínica"); p.setSpecialty(specialty);
+        var address=new Address(); address.setAddress("Rua A"); address.setNumber(1); address.setDistrict("Centro");
+        address.setCity("Cuiaba"); address.setUf("MT"); address.setZipCode("78000-000"); p.setAddress(address);
         var user=new User(); user.setId(UUID.randomUUID()); user.setPassword("secret-hash"); p.setUser(user);
         when(professionals.findById(p.getId())).thenReturn(Optional.of(p));
-        assertEquals(p.getId(),service.findById(p.getId()).id());
+        var response=service.findById(p.getId());
+        assertEquals(p.getId(),response.id()); assertEquals(specialty.getId(),response.specialtyId());
+        assertEquals("Rua A",response.address().address()); assertEquals(user.getId(),response.userId());
     }
 }

@@ -5,9 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 public record PatientCreateRequest(
         @NotBlank @Size(max = 100) String name,
@@ -17,6 +17,6 @@ public record PatientCreateRequest(
         @NotBlank @Size(max = 20) String cellPhone,
         @Email @Size(max = 100) String email,
         @NotBlank @Size(min = 1, max = 1) String gender,
-        @NotNull UUID addressId
+        @NotNull @Valid AddressRequestDTO address
 ) {
 }

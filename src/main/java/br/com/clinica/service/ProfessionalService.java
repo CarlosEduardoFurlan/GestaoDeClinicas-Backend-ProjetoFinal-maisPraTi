@@ -12,6 +12,7 @@ import br.com.clinica.exception.ResourceNotFoundException;
 import br.com.clinica.dto.request.ProfessionalRequestDTO;
 import br.com.clinica.dto.request.ProfessionalUpdateRequestDTO;
 import br.com.clinica.dto.response.ProfessionalResponseDTO;
+import br.com.clinica.dto.response.AddressResponseDTO;
 import br.com.clinica.entity.Address;
 import br.com.clinica.entity.Professional;
 import br.com.clinica.entity.Specialty;
@@ -115,7 +116,13 @@ public class ProfessionalService {
                 entity.getTelephone(),
                 entity.getCellPhone(),
                 entity.getEmail(),
+                entity.getSpecialty() != null ? entity.getSpecialty().getId() : null,
                 entity.getSpecialty() != null ? entity.getSpecialty().getName() : null,
+                entity.getAddress() != null ? new AddressResponseDTO(
+                        entity.getAddress().getAddress(), entity.getAddress().getNumber(),
+                        entity.getAddress().getComplement(), entity.getAddress().getDistrict(),
+                        entity.getAddress().getCity(), entity.getAddress().getUf(),
+                        entity.getAddress().getZipCode()) : null,
                 entity.getAddress() != null ? entity.getAddress().getCity() : null,
                 entity.getUser() != null ? entity.getUser().getId() : null
         );

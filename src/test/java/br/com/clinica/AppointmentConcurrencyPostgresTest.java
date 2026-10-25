@@ -65,7 +65,7 @@ class AppointmentConcurrencyPostgresTest {
         var professional = professionals.findById(professionalResponse.id()).orElseThrow();
         var patient = patientService.create(new PatientCreateRequest("Paciente concorrência",
                 digitsFrom(suffix), LocalDate.of(1990, 1, 1), null, "65999999999", null, "F",
-                professional.getAddress().getId()));
+                address()));
         var date = LocalDate.of(2027, 1, 15);
         var time = LocalTime.of(10, 0);
         scheduleService.create(new ScheduleRequestDTO(professional.getId(), date, time));

@@ -12,4 +12,5 @@ import br.com.clinica.entity.Professional;
 public interface ProfessionalRepository extends JpaRepository<Professional, UUID> {
     boolean existsByRegister(String register);
     Optional<Professional> findByUser_Email(String email);
+    Optional<Professional> findByUser_Id(UUID userId);
 }

@@ -9,7 +9,9 @@ public record ProfessionalResponseDTO(
     String telephone,
     String cellPhone,
     String email,
+    UUID specialtyId,
     String specialtyName,
+    AddressResponseDTO address,
     String cityName,
     UUID userId
 ) {}

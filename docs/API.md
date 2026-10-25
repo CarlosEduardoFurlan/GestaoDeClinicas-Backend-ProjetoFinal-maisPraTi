@@ -1,6 +1,6 @@
 # API — +PraClinic
 
-Estado em 22/10/2026. Contratos finais da Sprint 2 após a integração dos quatro integrantes.
+Estado em 25/10/2026. Contratos finais da Sprint 2 com os ajustes de compatibilidade necessários para o frontend.
 
 ## Autenticação e matriz de acesso
 
@@ -9,6 +9,8 @@ Enviar `Authorization: Bearer <accessToken>` nas rotas protegidas. Sem autentica
 | Método | Rota | Sucesso do controller | Acesso vigente |
 | --- | --- | --- | --- |
 | POST | /api/auth/login | 200 | Público |
+| GET | /api/auth/me | 200 | ADMIN, RECEPTIONIST, PROFESSIONAL |
+| GET | /api/statuses | 200 | ADMIN, RECEPTIONIST, PROFESSIONAL |
 | GET | /api/patients | 200 | ADMIN, RECEPTIONIST |
 | GET | /api/patients/{id} | 200 | ADMIN, RECEPTIONIST |
 | POST | /api/patients | 201 | ADMIN, RECEPTIONIST |
@@ -55,19 +57,31 @@ Não existe cadastro público nem POST /api/auth/register. Toda rota não autori
 
 Retorno 200: `{"accessToken":"JWT_ILUSTRATIVO","tokenType":"Bearer","expiresIn":900}`. expiresIn é duração em segundos. 400 para request inválido; 401 para credenciais incorretas. Perfil é obtido do banco, não enviado no login. JWT usa e-mail como subject; alteração desse identificador não integra o contrato de update.
 
-## Pacientes
-
-POST recebe `name` (obrigatório, até 100), `cpf` (obrigatório, até 14), `dateBirth` (data passada ISO YYYY-MM-DD), `telephone` (opcional, até 20), `cellPhone` (obrigatório, até 20), `email` (opcional, formato de e-mail, até 100), `gender` (obrigatório, um caractere) e `addressId` (UUID de endereço existente).
+`GET /api/auth/me` não recebe body e exige Bearer token de ADMIN, RECEPTIONIST ou PROFESSIONAL. O backend usa exclusivamente o subject/e-mail autenticado para localizar User e seu eventual Professional; nenhum identificador vem do cliente.
 
 ```json
-{"name":"Maria Silva","cpf":"12345678901","dateBirth":"1990-05-20","telephone":null,"cellPhone":"65999999999","email":"maria@example.com","gender":"F","addressId":"00000000-0000-0000-0000-000000000000"}
+{"userId":"00000000-0000-0000-0000-000000000001","name":"Ana Silva","email":"ana@example.com","profile":"PROFESSIONAL","professionalId":"00000000-0000-0000-0000-000000000002"}
 ```
 
-UUID ilustrativo: substituir por endereço existente. Não há endpoint de endereços aprovado nesta etapa; a origem desse addressId no fluxo do frontend precisa ser alinhada. Não foi inventado cadastro aninhado para Patient.
+Retorno 200 contém `userId,name,email,profile,professionalId`. `professionalId` é null para User sem Professional associado. A resposta não contém password/hash. Token ausente, inválido ou expirado retorna 401; User autenticado não localizado retorna 404.
 
-PUT recebe os mesmos campos, exceto cpf. CPF não é alterado. POST/PUT/GET por ID retornam PatientResponse com `id,name,cpf,dateBirth,telephone,cellPhone,email,gender,addressId`; GET listagem retorna uma lista desse objeto.
+## Pacientes
 
-Erros: 400 para validação e CPF/e-mail duplicado detectado pelo service; 404 para paciente/endereço inexistente; 409 para conflito de integridade do banco. DELETE continua bloqueado: service faz exclusão física e a FK de appointments preserva os vínculos existentes. Nenhuma política de soft delete, anonimização ou cascade foi adicionada.
+POST recebe `name` (obrigatório, até 100), `cpf` (obrigatório, até 14), `dateBirth` (data passada ISO YYYY-MM-DD), `telephone` (opcional, até 20), `cellPhone` (obrigatório, até 20), `email` (opcional, formato de e-mail, até 100), `gender` (obrigatório, um caractere) e `address` aninhado obrigatório.
+
+```json
+{"name":"Maria Silva","cpf":"12345678901","dateBirth":"1990-05-20","telephone":null,"cellPhone":"65999999999","email":"maria@example.com","gender":"F","address":{"address":"Rua A","number":100,"complement":null,"district":"Centro","city":"Cuiaba","uf":"MT","zipCode":"78000-000"}}
+```
+
+Address usa `address` (obrigatório, até 150), `number` (inteiro obrigatório), `complement` (opcional, até 20), `district` (obrigatório, até 50), `city` (obrigatório, até 100), `uf` (obrigatório, até 2) e `zipCode` (obrigatório, até 9). A criação do Address e do Patient ocorre na mesma transação; falha ao persistir Patient desfaz o Address.
+
+PUT recebe os mesmos campos editáveis e o mesmo Address aninhado, exceto cpf. O backend atualiza o Address já associado e mantém seu identificador; CPF não é alterado. POST/PUT/GET por ID retornam PatientResponse com `id,name,cpf,dateBirth,telephone,cellPhone,email,gender,addressId,address`; GET listagem retorna uma lista desse objeto. Exemplo de response:
+
+```json
+{"id":"00000000-0000-0000-0000-000000000010","name":"Maria Silva","cpf":"12345678901","dateBirth":"1990-05-20","telephone":null,"cellPhone":"65999999999","email":"maria@example.com","gender":"F","addressId":"00000000-0000-0000-0000-000000000011","address":{"address":"Rua A","number":100,"complement":null,"district":"Centro","city":"Cuiaba","uf":"MT","zipCode":"78000-000"}}
+```
+
+POST retorna 201; GET/PUT retornam 200. Erros: 400 para validação e CPF/e-mail duplicado detectado pelo service; 404 para paciente inexistente ou vínculo de Address inválido; 409 para conflito de integridade do banco. As rotas exigem ADMIN ou RECEPTIONIST; token ausente/inválido retorna 401 e outro perfil retorna 403. DELETE continua bloqueado. Nenhuma cascade foi adicionada.
 
 ## Profissionais
 
@@ -81,7 +95,11 @@ User: `name` (até 100), `email` (até 100), `password` (até 20), `profile`; to
 {"name":"Ana Silva","register":"CRM-12345","telephone":"6533333333","cellPhone":"65999999999","email":"contato@example.com","specialtyId":"00000000-0000-0000-0000-000000000000","address":{"address":"Rua A","number":100,"complement":null,"district":"Centro","city":"Cuiaba","uf":"MT","zipCode":"78000-000"},"user":{"name":"Ana Silva","email":"ana@example.com","password":"senha-ficticia","profile":"PROFESSIONAL"}}
 ```
 
-A criação de usuário/endereço/profissional é transacional. Retorno ProfessionalResponseDTO: `id,name,register,telephone,cellPhone,email,specialtyName,cityName,userId`. Nenhuma senha ou hash é exposta. GET listagem retorna lista; GET por ID retorna objeto.
+A criação de usuário/endereço/profissional é transacional. ProfessionalResponseDTO contém `id,name,register,telephone,cellPhone,email,specialtyId,specialtyName,address,cityName,userId`. Address possui os mesmos sete campos de leitura e escrita descritos acima. `cityName` foi preservado por compatibilidade. Nenhuma senha ou hash é exposta. GET listagem retorna lista; GET por ID retorna objeto.
+
+```json
+{"id":"00000000-0000-0000-0000-000000000020","name":"Ana Silva","register":"CRM-12345","telephone":"6533333333","cellPhone":"65999999999","email":"contato@example.com","specialtyId":"00000000-0000-0000-0000-000000000021","specialtyName":"Clínica geral","address":{"address":"Rua A","number":100,"complement":null,"district":"Centro","city":"Cuiaba","uf":"MT","zipCode":"78000-000"},"cityName":"Cuiaba","userId":"00000000-0000-0000-0000-000000000022"}
+```
 
 PUT recebe os campos do cadastro profissional e address, sem user. Não muda e-mail de login, senha, perfil ou vínculo da conta. O e-mail de contato do profissional é um campo distinto do identificador de autenticação. DELETE exclui somente Professional, sem apagar User/Address/agenda/histórico; FKs impedem exclusão quando aplicável. PUT/DELETE são exclusivos de ADMIN.
 
@@ -98,6 +116,22 @@ Erros do contrato: 400 para request/perfil inválido/e-mail duplicado; 404 para 
 POST/PUT recebem `name` obrigatório até 50 caracteres e `description` opcional, sem limite artificial além do schema text. GET por ID/POST/PUT retornam `id,name,description,created`; GET listagem retorna lista. created pode ser nulo na resposta imediata de criação antes de recarga do banco.
 
 400 para request/nome duplicado detectado pelo service; 404 para inexistente; 409 para violação de unicidade/FK. DELETE não exclui profissionais relacionados. Leitura é permitida aos três perfis; escrita é exclusiva de ADMIN. Não existe estado ativo/inativo de profissional.
+
+## Catálogo de status
+
+`GET /api/statuses` não recebe body e exige Bearer token de ADMIN, RECEPTIONIST ou PROFESSIONAL. Retorna 200 com DTOs `id,description` dos cinco status oficiais persistidos pela V14:
+
+```json
+[
+  {"id":"00000000-0000-0000-0000-000000000031","description":"Agendada"},
+  {"id":"00000000-0000-0000-0000-000000000032","description":"Confirmada"},
+  {"id":"00000000-0000-0000-0000-000000000033","description":"Em atendimento"},
+  {"id":"00000000-0000-0000-0000-000000000034","description":"Concluída"},
+  {"id":"00000000-0000-0000-0000-000000000035","description":"Cancelada"}
+]
+```
+
+Token ausente, inválido ou expirado retorna 401. Não existem POST, PUT, PATCH ou DELETE para Status; essas tentativas permanecem negadas com 403 para usuário autenticado.
 
 ## Agenda, agendamentos e prontuários
 
@@ -157,4 +191,4 @@ Formato único ApiErrorResponse: `timestamp,status,error,message,path,details`. 
 
 `./mvnw.cmd test` no Windows ou `./mvnw test` no Linux/macOS. Sem RUN_POSTGRES_TESTS=true, os testes condicionados a PostgreSQL são ignorados intencionalmente. Para executar todos, usar banco exclusivo, configurar DB_URL/DB_USERNAME/DB_PASSWORD e RUN_POSTGRES_TESTS=true, executar verify. Não usar banco de desenvolvimento.
 
-SecurityHttpTest usa filtros/JWT reais e services simulados. OwnershipPolicyServiceTest cobre as permissões e transições por ator. CurrentUserAccessTest cobre a resolução pelo subject e o vínculo ausente. OwnershipPostgresTest prova filtros e 403 entre dois profissionais persistidos. ApiPostgresTest cobre login, BCrypt e fluxo de pacientes HTTP com persistência real. Os números e gates desta rodada estão no relatório de auditoria; contagem não representa cobertura percentual.
+SecurityHttpTest usa filtros/JWT reais e services simulados, incluindo `/api/auth/me`, `/api/statuses` e ausência de endpoints mutáveis de Status. OwnershipPolicyServiceTest cobre as permissões e transições por ator. CurrentUserAccessTest cobre a resolução pelo subject e o vínculo ausente. OwnershipPostgresTest prova filtros e 403 entre dois profissionais persistidos. ApiPostgresTest cobre login, BCrypt, catálogo oficial, identidade autenticada, contratos de Professional e fluxo transacional de Patient/Address com persistência real. Os números e gates desta rodada estão no relatório de auditoria; contagem não representa cobertura percentual.

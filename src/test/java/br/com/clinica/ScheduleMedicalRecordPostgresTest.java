@@ -54,7 +54,7 @@ class ScheduleMedicalRecordPostgresTest {
                 new UserRequestDTO("Ana",email,"test-password","PROFESSIONAL")));
         professional = professionals.findById(p.id()).orElseThrow();
         var patientDto = patientService.create(new PatientCreateRequest("Maria", "12345678901", LocalDate.of(1990,1,1),
-                null,"123",null,"F",professional.getAddress().getId()));
+                null,"123",null,"F",new AddressRequestDTO("Rua P",2,null,"Centro","Cuiaba","MT","78000-001")));
         patient = patients.findById(patientDto.id()).orElseThrow();
         status = statuses.saveAndFlush(new Status(null, "schema-test-fixture"));
     }

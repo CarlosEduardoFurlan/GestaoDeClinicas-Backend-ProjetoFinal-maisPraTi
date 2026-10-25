@@ -89,7 +89,8 @@ class AdministrativeControllersTest {
         mvc.perform(delete("/api/specialties/"+id)).andExpect(status().isConflict()).andExpect(jsonPath("$.status").value(409));
     }
     @Test void professionalUpdateDoesNotRequireAuthenticationFields() throws Exception {
-        when(professionals.update(eq(id),any())).thenReturn(new ProfessionalResponseDTO(id,"Ana","CRM-1","123","123","ana@example.com","Clínica","Cuiaba",UUID.randomUUID()));
+        when(professionals.update(eq(id),any())).thenReturn(new ProfessionalResponseDTO(id,"Ana","CRM-1","123","123","ana@example.com",
+                UUID.randomUUID(),"Clínica",new AddressResponseDTO("Rua A",1,null,"Centro","Cuiaba","MT","78000-000"),"Cuiaba",UUID.randomUUID()));
         mvc.perform(put("/api/professionals/"+id).contentType(MediaType.APPLICATION_JSON).content("""
                 {"name":"Ana","register":"CRM-1","telephone":"123","cellPhone":"123","email":"ana@example.com",
                  "specialtyId":"%s","address":{"address":"Rua A","number":1,"district":"Centro","city":"Cuiaba","uf":"MT","zipCode":"78000-000"}}

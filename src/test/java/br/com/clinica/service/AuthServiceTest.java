@@ -3,6 +3,10 @@ package br.com.clinica.service;
 import br.com.clinica.dto.request.LoginRequestDTO;
 import br.com.clinica.dto.response.LoginResponseDTO;
 import br.com.clinica.security.JwtService;
+import br.com.clinica.repository.UserRepository;
+import br.com.clinica.repository.ProfessionalRepository;
+import br.com.clinica.entity.User;
+import br.com.clinica.entity.Professional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -13,6 +17,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +36,8 @@ class AuthServiceTest {
 
     @Mock
     private JwtService jwtService;
+    @Mock private UserRepository userRepository;
+    @Mock private ProfessionalRepository professionalRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -73,5 +81,27 @@ class AuthServiceTest {
 
         assertSame(expectedResponse, response);
         verify(jwtService).generateToken(authenticated);
+    }
+
+    @Test
+    void returnsAuthenticatedUserWithLinkedProfessional() {
+        var user = new User(); user.setId(UUID.randomUUID()); user.setName("Ana");
+        user.setEmail("ana@example.com"); user.setProfile("PROFESSIONAL");
+        var professional = new Professional(); professional.setId(UUID.randomUUID());
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(professionalRepository.findByUser_Id(user.getId())).thenReturn(Optional.of(professional));
+        var response = authService.me(user.getEmail());
+        assertSame(user.getId(), response.userId());
+        assertSame(professional.getId(), response.professionalId());
+    }
+
+    @Test
+    void returnsNullProfessionalForAdministrativeUser() {
+        var user = new User(); user.setId(UUID.randomUUID()); user.setName("Admin");
+        user.setEmail("admin@example.com"); user.setProfile("ADMIN");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        var response = authService.me(user.getEmail());
+        assertSame(user.getId(), response.userId());
+        org.junit.jupiter.api.Assertions.assertNull(response.professionalId());
     }
 }

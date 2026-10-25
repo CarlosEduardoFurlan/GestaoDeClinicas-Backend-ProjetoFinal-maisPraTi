@@ -12,6 +12,7 @@ public record PatientResponse(
         String cellPhone,
         String email,
         String gender,
-        UUID addressId
+        UUID addressId,
+        AddressResponseDTO address
 ) {
 }

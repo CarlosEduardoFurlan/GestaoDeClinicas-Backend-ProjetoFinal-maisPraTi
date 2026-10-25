@@ -2,7 +2,9 @@ package br.com.clinica.service;
 
 import br.com.clinica.dto.request.PatientCreateRequest;
 import br.com.clinica.dto.request.PatientUpdateRequest;
+import br.com.clinica.dto.request.AddressRequestDTO;
 import br.com.clinica.dto.response.PatientResponse;
+import br.com.clinica.dto.response.AddressResponseDTO;
 import br.com.clinica.entity.Address;
 import br.com.clinica.entity.Patient;
 import br.com.clinica.exception.BusinessException;
@@ -30,7 +32,9 @@ public class PatientService {
         }
 
         validateEmail(request.email(), null);
-        Address address = findAddress(request.addressId());
+        Address address = new Address();
+        updateAddress(address, request.address());
+        address = addressRepository.save(address);
         Patient patient = new Patient();
         patient.setName(request.name());
         patient.setCpf(request.cpf());
@@ -58,14 +62,18 @@ public class PatientService {
     public PatientResponse update(UUID id, PatientUpdateRequest request) {
         Patient patient = findPatient(id);
         validateEmail(request.email(), id);
-        Address address = findAddress(request.addressId());
+        Address address = patient.getAddress();
+        if (address == null) {
+            throw new ResourceNotFoundException("Endereço associado ao paciente não encontrado.");
+        }
+        updateAddress(address, request.address());
+        addressRepository.save(address);
         patient.setName(request.name());
         patient.setDateBirth(request.dateBirth());
         patient.setTelephone(request.telephone());
         patient.setCellPhone(request.cellPhone());
         patient.setEmail(request.email());
         patient.setGender(request.gender());
-        patient.setAddress(address);
 
         return toResponse(patientRepository.save(patient));
     }
@@ -87,9 +95,19 @@ public class PatientService {
         if (exists) throw new BusinessException("Já existe um paciente cadastrado com este e-mail.");
     }
 
-    private Address findAddress(UUID id) {
-        return addressRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Endereço não encontrado: " + id));
+    private void updateAddress(Address address, AddressRequestDTO request) {
+        address.setAddress(request.address());
+        address.setNumber(request.number());
+        address.setComplement(request.complement());
+        address.setDistrict(request.district());
+        address.setCity(request.city());
+        address.setUf(request.uf());
+        address.setZipCode(request.zipCode());
+    }
+
+    private AddressResponseDTO toAddressResponse(Address address) {
+        return new AddressResponseDTO(address.getAddress(), address.getNumber(), address.getComplement(),
+                address.getDistrict(), address.getCity(), address.getUf(), address.getZipCode());
     }
 
     private PatientResponse toResponse(Patient patient) {
@@ -102,7 +120,8 @@ public class PatientService {
                 patient.getCellPhone(),
                 patient.getEmail(),
                 patient.getGender(),
-                patient.getAddress().getId()
+                patient.getAddress().getId(),
+                toAddressResponse(patient.getAddress())
         );
     }
 }

@@ -83,10 +83,9 @@ public class UserService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!userRepository.existsById(id)) {
+        if (userRepository.deleteDirectlyById(id) == 0) {
             throw new ResourceNotFoundException("Usuário não encontrado com o ID: " + id);
         }
-        userRepository.deleteById(id);
     }
 
     // Regra 2: Converte a entidade mapeando apenas campos permitidos (sem password/hash)

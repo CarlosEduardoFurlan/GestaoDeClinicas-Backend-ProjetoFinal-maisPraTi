@@ -35,7 +35,7 @@ class ScheduleServiceTest {
     @Test void rejectsDuplicateSlot() {
         when(professionals.findById(request.professionalId())).thenReturn(Optional.of(new Professional()));
         when(schedules.existsByProfessional_IdAndDateAndTime(request.professionalId(), request.date(), request.time())).thenReturn(true);
-        assertThrows(BusinessException.class, () -> service.create(request));
+        assertThrows(ConflictException.class, () -> service.create(request));
         verify(schedules, never()).save(any());
     }
     @Test void listsSlotsWithProfessionalIdentityAndOffsetTimestamp() {

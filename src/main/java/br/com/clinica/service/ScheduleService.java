@@ -3,7 +3,7 @@ package br.com.clinica.service;
 import br.com.clinica.dto.request.ScheduleRequestDTO;
 import br.com.clinica.dto.response.ScheduleResponseDTO;
 import br.com.clinica.entity.Schedule;
-import br.com.clinica.exception.BusinessException;
+import br.com.clinica.exception.ConflictException;
 import br.com.clinica.exception.ResourceNotFoundException;
 import br.com.clinica.repository.ProfessionalRepository;
 import br.com.clinica.repository.ScheduleRepository;
@@ -29,7 +29,7 @@ public class ScheduleService {
         var professional = professionals.findById(request.professionalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Profissional não encontrado."));
         if (schedules.existsByProfessional_IdAndDateAndTime(request.professionalId(), request.date(), request.time())) {
-            throw new BusinessException("Horário já cadastrado para este profissional.");
+            throw new ConflictException("Horário já cadastrado para este profissional.");
         }
         var slot = new Schedule();
         slot.setProfessional(professional);

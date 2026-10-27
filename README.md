@@ -79,6 +79,14 @@ Linux/macOS:
 ./mvnw spring-boot:run
 ```
 
+## Docker e preparação para Render
+
+O Dockerfile multi-stage usa Eclipse Temurin Java 26 e Maven Wrapper. A aplicação
+aceita `PORT` em runtime, mantendo 8080 como padrão local. Consulte
+[o procedimento de deploy no Render](docs/RENDER_DEPLOY.md), incluindo PostgreSQL
+18, variáveis externas, limites do plano Free e provisionamento manual do ADMIN.
+Esta preparação não cria infraestrutura nem configura credenciais no Render.
+
 ## Testes e integração
 
 Execute `./mvnw test` (Windows: `./mvnw.cmd test`) para testes unitários. Para incluir os testes de API, migrations e JPA, use um **banco PostgreSQL exclusivo de testes**, configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `RUN_POSTGRES_TESTS=true`, e execute `./mvnw verify`.

@@ -139,6 +139,8 @@ Token ausente, inválido ou expirado retorna 401. Não existem POST, PUT, PATCH 
 
 `POST /api/schedules` recebe `professionalId`, `date` e `time`, todos obrigatórios. O profissional deve existir e V13 garante somente um slot por profissional/data/hora. `GET /api/schedules` retorna `id,professionalId,professionalName,date,time,created`.
 
+Schedule duplicado por profissional/data/horário retorna **409 Conflict**, tanto no pre-check quanto na constraint de unicidade do PostgreSQL. DTO inválido continua 400, profissional inexistente 404 e permissão/ownership negados 403.
+
 ADMIN cria slots para qualquer Professional e lista todos. RECEPTIONIST somente lista todos. PROFESSIONAL lista apenas os próprios slots e só cria quando o `professionalId` corresponde ao Professional resolvido pelo usuário autenticado.
 
 ### Agendamentos

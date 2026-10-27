@@ -64,7 +64,7 @@ class ScheduleMedicalRecordPostgresTest {
         schedules.flush(); entityManager.clear();
         var found = scheduleService.findAll().stream().filter(s -> s.id().equals(created.id())).findFirst().orElseThrow();
         assertEquals(date, found.date()); assertNotNull(found.created());
-        assertThrows(br.com.clinica.exception.BusinessException.class,
+        assertThrows(br.com.clinica.exception.ConflictException.class,
                 () -> scheduleService.create(new ScheduleRequestDTO(professional.getId(), date, time)));
     }
 

@@ -1,94 +1,44 @@
-# Gestão de Clínicas — Backend
+# +PraClinic — Backend
 
-API do Sistema de Gestão de Clínicas do projeto final +praTI.
+API REST de gestão clínica com autenticação, cadastros, disponibilidade, consultas e prontuários.
 
-## Tecnologias
-- Java / JDK 26
-- Spring Boot 4.1.1
-- Spring Data JPA
-- Flyway
-- PostgreSQL
-- Maven
-- Lombok
+## Tecnologias e pré-requisitos
 
-## Estrutura
-O projeto possui uma única aplicação Spring Boot na raiz do repositório.
+Java 26, Spring Boot 4.1.1, Spring Security/JWT, Spring Data JPA, PostgreSQL 18 e Flyway. Use JDK 26, PostgreSQL e o Maven Wrapper incluído; Docker é opcional para execução em container.
 
-```text
-src/
-├── main/
-│   ├── java/br/com/clinica/
-│   │   ├── config/
-│   │   ├── security/
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── repository/
-│   │   ├── entity/
-│   │   ├── dto/request/
-│   │   ├── dto/response/
-│   │   ├── mapper/
-│   │   ├── exception/
-│   │   └── validation/
-│   └── resources/
-│       ├── application.properties
-│       └── db/migration/
-└── test/java/br/com/clinica/
-    ├── controller/
-    ├── service/
-    └── repository/
-```
+## Configuração
 
-## Banco de dados
-As migrations oficiais ficam em `src/main/resources/db/migration/`.
-Elas devem ser a única fonte versionada da estrutura do banco.
+Configure no ambiente do processo `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `JWT_SECRET`. A chave JWT deve representar pelo menos 32 bytes aleatórios reais em Base64. O Spring não lê `.env` automaticamente. Nunca versione credenciais.
 
-Não crie tabelas manualmente para fazer a aplicação funcionar.
+`APP_CORS_ALLOWED_ORIGINS` recebe origens exatas separadas por vírgula. Para o frontend local, configure `http://localhost:3000` somente no backend local. `PORT` é opcional localmente; o padrão é 8080. Flyway aplica as migrations e Hibernate valida o schema ao iniciar.
 
-## Configuração local
-Crie um banco PostgreSQL chamado `clinica` e configure as variáveis locais `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`.
+## Executar
 
-A senha não deve ser colocada no repositório.
+Na raiz, com as variáveis configuradas:
 
-O `.env.example` é apenas referência: exporte as variáveis no terminal ou configure-as na IDE; o Spring Boot não lê `.env` automaticamente. Use JDK 26 e o Maven Wrapper incluído.
-
-Configure também `JWT_SECRET` com pelo menos 32 bytes aleatórios em Base64. Nunca versione essa chave. O login é `POST /api/auth/login`; o primeiro ADMIN é criado manualmente conforme [bootstrap seguro](docs/BOOTSTRAP_ADMIN.md). Não existe cadastro público.
-
-Para CORS, a feature de preparação aceita `APP_CORS_ALLOWED_ORIGINS` com origens exatas separadas por vírgula. Vazio por padrão; não usar `*`. Configure apenas a origem acordada do frontend no ambiente. Permissões da API continuam independentes do CORS.
-
-## Versionamento
-Fluxo adotado:
-
-```text
-feature/* → develop → main
-```
-
-- `main`: versão estável.
-- `develop`: integração.
-- `feature/*`: desenvolvimento de tarefas individuais.
-
-## Execução
-Windows:
-
-```bash
-mvnw.cmd spring-boot:run
-```
-
-Linux/macOS:
-
-```bash
+```sh
 ./mvnw spring-boot:run
 ```
 
-## Docker e preparação para Render
+Windows: `mvnw.cmd spring-boot:run`. API local: `http://localhost:8080/api` sem PORT definida. Não há cadastro público ou credencial padrão; o primeiro ADMIN exige provisionamento manual seguro.
 
-O Dockerfile multi-stage usa Eclipse Temurin Java 26 e Maven Wrapper. A aplicação
-aceita `PORT` em runtime, mantendo 8080 como padrão local. Consulte
-[o procedimento de deploy no Render](docs/RENDER_DEPLOY.md), incluindo PostgreSQL
-18, variáveis externas, limites do plano Free e provisionamento manual do ADMIN.
-Esta preparação não cria infraestrutura nem configura credenciais no Render.
+## Testar
 
-## Testes e integração
+Configure as variáveis de um PostgreSQL 18 **exclusivo para testes** e RUN_POSTGRES_TESTS=true:
 
-Execute `./mvnw test` (Windows: `./mvnw.cmd test`) para testes unitários. Para incluir os testes de API, migrations e JPA, use um **banco PostgreSQL exclusivo de testes**, configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` e `RUN_POSTGRES_TESTS=true`, e execute `./mvnw verify`.
+```sh
+./mvnw -B -ntp clean verify
+```
 
-O GitHub Actions executa essa suíte com PostgreSQL descartável. Consulte os [contratos e permissões da API](docs/API.md) e o [relatório de auditoria](docs/AUDITORIA_SPRINT2.md). A Sprint 2 ainda possui decisões pendentes; compilação ou CI verde não significam conclusão do backend.
+Windows: `mvnw.cmd -B -ntp clean verify`. Nunca usar o banco de produção. Backend validation executa a suíte com PostgreSQL descartável.
+
+## Produção
+
+- API HTTPS no Render: https://praclinic-api.onrender.com/api
+- Frontend: https://carloseduardofurlan.github.io/GestaoDeClinicas-Frontend-ProjetoFinal-maisPraTi/
+- Deploy pela main, com Docker multi-stage Temurin 26 e PORT dinâmica. Secrets ficam no ambiente Render; CORS permite somente a origem GitHub Pages.
+- O plano Free pode apresentar cold start; durabilidade e capacidade do banco dependem do plano contratado.
+
+## Arquitetura
+
+[Arquitetura, domínio, regras, permissões e operação](docs/ARQUITETURA.md).

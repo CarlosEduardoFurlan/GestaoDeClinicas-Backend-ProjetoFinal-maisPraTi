@@ -1,0 +1,100 @@
+package br.com.clinica.config;
+
+import br.com.clinica.security.ApiAccessDeniedHandler;
+import br.com.clinica.security.ApiAuthenticationEntryPoint;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@Import(CorsConfig.class)
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            ApiAuthenticationEntryPoint authenticationEntryPoint,
+            ApiAccessDeniedHandler accessDeniedHandler)
+            throws Exception {
+
+        http
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/statuses")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/professionals")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/professionals")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.GET, "/api/professionals/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/professionals/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/professionals/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers("/api/users", "/api/users/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/specialties", "/api/specialties/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/specialties")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/specialties/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/specialties/{id}")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/patients")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.GET, "/api/patients")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.GET, "/api/patients/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/patients/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.GET, "/api/schedules")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/schedules")
+                        .hasAnyRole("ADMIN", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.GET, "/api/appointments", "/api/appointments/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/appointments")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/api/appointments/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.DELETE, "/api/appointments/{id}")
+                        .hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.GET, "/api/medical-records", "/api/medical-records/{id}")
+                        .hasAnyRole("ADMIN", "PROFESSIONAL")
+                        .requestMatchers(HttpMethod.POST, "/api/medical-records")
+                        .hasRole("PROFESSIONAL")
+                        .requestMatchers(HttpMethod.PUT, "/api/medical-records/{id}")
+                        .hasRole("PROFESSIONAL")
+                        .anyRequest().denyAll())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                        .jwt(jwt -> jwt
+                                .jwtAuthenticationConverter(
+                                        jwtAuthenticationConverter)));
+
+        return http.build();
+    }
+}

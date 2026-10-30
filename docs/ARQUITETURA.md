@@ -6,11 +6,13 @@ API REST em Java 26 e Spring Boot 4.1.1, com Spring MVC, Spring Security, Spring
 
 ```mermaid
 flowchart LR
-    Frontend[Frontend no GitHub Pages] -->|HTTPS e JWT Bearer| API[API REST no Render]
+    Frontend[Frontend principal na Vercel] -->|HTTPS e JWT Bearer| API[API REST no Render]
     API -->|JDBC| DB[(PostgreSQL no Render)]
 ```
 
 API pública: https://praclinic-api.onrender.com. As rotas usam a base `/api`.
+
+Frontend principal: https://praclinic.vercel.app. GitHub Pages permanece como publicação secundária/compatibilidade em https://carloseduardofurlan.github.io/GestaoDeClinicas-Frontend-ProjetoFinal-maisPraTi/.
 
 ## 2. Camadas
 
@@ -161,7 +163,7 @@ Formato uniforme: `timestamp`, `status`, `error`, `message`, `path`, `details`. 
 
 Spring Boot não carrega `.env` automaticamente: configure o ambiente do processo/IDE. DB_URL não possui alias DATABASE_URL. Credenciais e chaves não pertencem a fonte, argumentos compartilhados, documentação, imagens ou Git.
 
-CORS de produção: `https://carloseduardofurlan.github.io`, sem caminho do repositório ou barra final. A política é fechada por padrão, sem wildcard ou cookies/credentials; aceita Authorization/Content-Type e métodos GET/POST/PUT/DELETE/OPTIONS. CORS não autentica nem amplia permissões da API. Origens locais devem ser configuradas somente no backend do ambiente local.
+CORS de produção permite exatamente `https://praclinic.vercel.app` (frontend principal) e `https://carloseduardofurlan.github.io` (publicação secundária), sem caminho do repositório ou barra final. A política é fechada por padrão, sem wildcard ou cookies/credentials; aceita Authorization/Content-Type e métodos GET/POST/PUT/DELETE/OPTIONS. CORS não autentica nem amplia permissões da API. Origens locais devem ser configuradas somente no backend do ambiente local.
 
 ## 11. Primeiro ADMIN
 

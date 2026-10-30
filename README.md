@@ -35,8 +35,9 @@ Windows: `mvnw.cmd -B -ntp clean verify`. Nunca usar o banco de produção. Back
 ## Produção
 
 - API HTTPS no Render: https://praclinic-api.onrender.com/api
-- Frontend: https://carloseduardofurlan.github.io/GestaoDeClinicas-Frontend-ProjetoFinal-maisPraTi/
-- Deploy pela main, com Docker multi-stage Temurin 26 e PORT dinâmica. Secrets ficam no ambiente Render; CORS permite somente a origem GitHub Pages.
+- Frontend principal na Vercel: https://praclinic.vercel.app
+- GitHub Pages permanece como publicação secundária/compatibilidade: https://carloseduardofurlan.github.io/GestaoDeClinicas-Frontend-ProjetoFinal-maisPraTi/
+- Deploy pela main, com Docker multi-stage Temurin 26 e PORT dinâmica. Secrets ficam no ambiente Render; CORS permite exatamente `https://praclinic.vercel.app` e `https://carloseduardofurlan.github.io`.
 - O plano Free pode apresentar cold start; durabilidade e capacidade do banco dependem do plano contratado.
 
 ## Arquitetura

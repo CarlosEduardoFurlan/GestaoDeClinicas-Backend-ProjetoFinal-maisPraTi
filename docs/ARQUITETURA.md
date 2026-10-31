@@ -175,6 +175,8 @@ Nunca registrar senha, hash real ou SQL preenchido em arquivos/logs/Git. JWT_SEC
 
 ## 12. Deploy e operação
 
+O ambiente público possui contas de demonstração para ADMIN, RECEPTIONIST e PROFESSIONAL. As credenciais acadêmicas estão disponíveis no [README](../README.md#acesso-de-demonstração). A carga é administrativa, com dados fictícios, sem seed automático no deploy.
+
 Docker multi-stage usa Eclipse Temurin Java 26: JDK/Maven Wrapper na compilação; JRE/JAR no runtime, com usuário sem privilégio. O build da imagem empacota com testes desabilitados; a suíte completa é um gate separado antes da promoção.
 
 O Web Service `praclinic-api` no Render deve acompanhar a main estável e usar o Dockerfile da raiz. Banco e serviço precisam de conectividade adequada, preferencialmente na mesma região. Render termina HTTPS e fornece PORT; não se fixa porta do provedor no código. Secrets ficam no ambiente, fora da imagem. Flyway e JPA validate executam ao iniciar.

@@ -40,6 +40,24 @@ Windows: `mvnw.cmd -B -ntp clean verify`. Nunca usar o banco de produção. Back
 - Deploy pela main, com Docker multi-stage Temurin 26 e PORT dinâmica. Secrets ficam no ambiente Render; CORS permite exatamente `https://praclinic.vercel.app` e `https://carloseduardofurlan.github.io`.
 - O plano Free pode apresentar cold start; durabilidade e capacidade do banco dependem do plano contratado.
 
+## Acesso de demonstração
+
+Estas contas são exclusivamente fictícias e foram criadas para avaliação acadêmica do +PraClinic. Não representam usuários ou pacientes reais. As credenciais são intencionalmente públicas e exclusivas desse ambiente acadêmico.
+
+- Aplicação: https://praclinic.vercel.app
+- API: https://praclinic-api.onrender.com
+
+| Perfil | Usuário | Senha |
+| --- | --- | --- |
+| Administrador | admin.demo@praclinic.invalid | AdminDemo!26 |
+| Recepção | recepcao.demo@praclinic.invalid | RecepcaoDemo!26 |
+| Profissional — Clínica Geral | helena.demo@praclinic.invalid | HelenaDemo!26 |
+| Profissional — Cardiologia | rafael.demo@praclinic.invalid | RafaelDemo!26 |
+| Profissional — Dermatologia | camila.demo@praclinic.invalid | CamilaDemo!26 |
+| Profissional — Pediatria | andre.demo@praclinic.invalid | AndreDemo!26 |
+
+As contas e os dados foram provisionados administrativamente pelas APIs reais. O redeploy usa o PostgreSQL persistente e não executa carga ou recriação automática de dados.
+
 ## Arquitetura
 
 [Arquitetura, domínio, regras, permissões e operação](docs/ARQUITETURA.md).
